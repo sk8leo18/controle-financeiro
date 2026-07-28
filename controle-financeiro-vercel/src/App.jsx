@@ -9,7 +9,9 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid
 } from "recharts";
-import { storage } from "./storage.js";
+import { storage, migrateLocalToCloud } from "./storage.js";
+import { auth, googleProvider, hasFirebaseConfig } from "./firebase.js";
+import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from "firebase/auth";
 
 /* ---------------------------------------------------------------------- */
 /* Constantes                                                              */
@@ -154,28 +156,6 @@ function AccountBadge({ account, size = 40 }) {
   );
 }
 
-function StatusBar() {
-  const [time, setTime] = useState(
-    new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-  );
-  useEffect(() => {
-    const t = setInterval(
-      () => setTime(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })),
-      30000
-    );
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <div className="fin-mono flex items-center justify-between px-6 pt-3 pb-1 text-[11px]" style={{ color: "var(--ink)" }}>
-      <span>{time}</span>
-      <div className="flex items-center gap-1">
-        <span>••••</span>
-        <span style={{ opacity: 0.6 }}>100%</span>
-      </div>
-    </div>
-  );
-}
-
 function Sheet({ title, onClose, children }) {
   return (
     <div className="absolute inset-0 z-30 flex flex-col justify-end" style={{ background: "rgba(27,42,34,0.45)" }} onClick={onClose}>
@@ -236,11 +216,44 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [sheet, setSheet] = useState(null); // 'txn' | 'account' | 'goal' | null
   const [saveError, setSaveError] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(!hasFirebaseConfig);
 
-  // Carregar dados
+  // Observar login/logout com Google
   useEffect(() => {
+    if (!hasFirebaseConfig) return;
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthReady(true);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSignIn = async () => {
+    if (!hasFirebaseConfig) return;
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e) {
+      console.error("Erro ao entrar com Google:", e);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (!hasFirebaseConfig) return;
+    try {
+      await firebaseSignOut(auth);
+    } catch (e) {
+      console.error("Erro ao sair:", e);
+    }
+  };
+
+  // Carregar dados (roda de novo sempre que o login mudar)
+  useEffect(() => {
+    if (!authReady) return;
+    setLoaded(false);
     (async () => {
       try {
+        if (user) await migrateLocalToCloud(STORAGE_KEY);
         const res = await storage.get(STORAGE_KEY);
         if (res && res.value) {
           setData(JSON.parse(res.value));
@@ -253,7 +266,7 @@ export default function App() {
         setLoaded(true);
       }
     })();
-  }, []);
+  }, [authReady, user]);
 
   // Salvar dados (debounced simples)
   useEffect(() => {
@@ -350,24 +363,43 @@ export default function App() {
 
   return (
     <div
-      className="fin-app w-full flex justify-center items-start"
-      style={{ ...cssVars, background: "linear-gradient(180deg, #17233B 0%, #0F1826 100%)", padding: "28px 12px", minHeight: 760 }}
+      className="fin-app w-full"
+      style={{ ...cssVars, background: "var(--paper)", minHeight: "100dvh" }}
     >
       <GlobalStyle />
       <div
-        className="relative w-full overflow-hidden"
-        style={{
-          maxWidth: 390,
-          height: 760,
-          background: "var(--paper)",
-          borderRadius: 44,
-          border: "8px solid #0F1826",
-          boxShadow: "0 30px 60px rgba(0,0,0,0.45)",
-        }}
+        className="relative w-full mx-auto overflow-hidden"
+        style={{ maxWidth: 480, height: "100dvh", background: "var(--paper)" }}
       >
-        <StatusBar />
+        {hasFirebaseConfig && (
+          <div className="flex items-center justify-between px-5" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)", paddingBottom: 8 }}>
+            {user ? (
+              <div className="flex items-center gap-2 min-w-0">
+                {user.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />}
+                <span className="fin-mono text-[11px] truncate" style={{ color: "var(--muted)" }}>
+                  {user.displayName ? user.displayName.split(" ")[0] : user.email}
+                </span>
+              </div>
+            ) : (
+              <span className="fin-mono text-[11px]" style={{ color: "var(--muted)" }}>Dados salvos neste aparelho</span>
+            )}
+            <button
+              onClick={user ? handleSignOut : handleSignIn}
+              className="fin-mono text-[11px] flex-shrink-0"
+              style={{ color: "var(--navy)" }}
+            >
+              {user ? "Sair" : "Entrar com Google"}
+            </button>
+          </div>
+        )}
 
-        <div className="fin-scroll overflow-y-auto" style={{ height: "calc(100% - 132px)" }}>
+        <div
+          className="fin-scroll overflow-y-auto"
+          style={{
+            height: hasFirebaseConfig ? "calc(100dvh - 68px - 40px)" : "calc(100dvh - 68px)",
+            paddingTop: hasFirebaseConfig ? 0 : "env(safe-area-inset-top, 0px)",
+          }}
+        >
           {tab === "home" && (
             <HomeView data={data} balances={balances} totalBalance={totalBalance} totals={totals} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} />
           )}
