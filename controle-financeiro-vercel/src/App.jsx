@@ -3,7 +3,7 @@ import {
   Plus, Wallet, TrendingUp, Home as HomeIcon, Receipt, PiggyBank, BarChart3,
   Trash2, X, Utensils, Car, Gamepad2, HeartPulse, GraduationCap, ShoppingBag,
   MoreHorizontal, CreditCard, Target, ArrowUpRight, ArrowDownRight, Landmark,
-  Check
+  Check, ChevronLeft, ChevronRight, LogOut
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -158,9 +158,9 @@ function AccountBadge({ account, size = 40 }) {
 
 function Sheet({ title, onClose, children }) {
   return (
-    <div className="absolute inset-0 z-30 flex flex-col justify-end" style={{ background: "rgba(27,42,34,0.45)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-30 flex flex-col justify-end md:items-center md:justify-center" style={{ background: "rgba(27,42,34,0.45)" }} onClick={onClose}>
       <div
-        className="fin-sheet fin-scroll overflow-y-auto rounded-t-[28px] px-5 pt-4 pb-6 max-h-[85%]"
+        className="fin-sheet fin-scroll overflow-y-auto rounded-t-[28px] md:rounded-[24px] px-5 pt-4 pb-6 max-h-[85%] w-full md:max-w-[440px] md:mx-4"
         style={{ background: "var(--card)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -363,81 +363,153 @@ export default function App() {
 
   return (
     <div
-      className="fin-app w-full"
-      style={{ ...cssVars, background: "var(--paper)", minHeight: "100dvh" }}
+      className="fin-app w-full min-h-dvh"
+      style={{ ...cssVars, background: "var(--paper)" }}
     >
       <GlobalStyle />
-      <div
-        className="relative w-full mx-auto overflow-hidden"
-        style={{ maxWidth: 480, height: "100dvh", background: "var(--paper)" }}
-      >
-        {hasFirebaseConfig && (
-          <div className="flex items-center justify-between px-5" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)", paddingBottom: 8 }}>
-            {user ? (
-              <div className="flex items-center gap-2 min-w-0">
-                {user.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />}
-                <span className="fin-mono text-[11px] truncate" style={{ color: "var(--muted)" }}>
-                  {user.displayName ? user.displayName.split(" ")[0] : user.email}
-                </span>
-              </div>
-            ) : (
-              <span className="fin-mono text-[11px]" style={{ color: "var(--muted)" }}>Dados salvos neste aparelho</span>
-            )}
-            <button
-              onClick={user ? handleSignOut : handleSignIn}
-              className="fin-mono text-[11px] flex-shrink-0"
-              style={{ color: "var(--navy)" }}
+      <div className="md:flex md:items-start">
+        <SidebarNav tab={tab} setTab={setTab} user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} />
+
+        <div className="flex-1 min-w-0 md:ml-60">
+          {hasFirebaseConfig && (
+            <div
+              className="md:hidden flex items-center justify-between px-5"
+              style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)", paddingBottom: 8 }}
             >
-              {user ? "Sair" : "Entrar com Google"}
-            </button>
-          </div>
-        )}
+              {user ? (
+                <div className="flex items-center gap-2 min-w-0">
+                  {user.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />}
+                  <span className="fin-mono text-[11px] truncate" style={{ color: "var(--muted)" }}>
+                    {user.displayName ? user.displayName.split(" ")[0] : user.email}
+                  </span>
+                </div>
+              ) : (
+                <span className="fin-mono text-[11px]" style={{ color: "var(--muted)" }}>Dados salvos neste aparelho</span>
+              )}
+              <button
+                onClick={user ? handleSignOut : handleSignIn}
+                className="fin-mono text-[11px] flex-shrink-0"
+                style={{ color: "var(--navy)" }}
+              >
+                {user ? "Sair" : "Entrar com Google"}
+              </button>
+            </div>
+          )}
 
-        <div
-          className="fin-scroll overflow-y-auto"
-          style={{
-            height: hasFirebaseConfig ? "calc(100dvh - 68px - 40px)" : "calc(100dvh - 68px)",
-            paddingTop: hasFirebaseConfig ? 0 : "env(safe-area-inset-top, 0px)",
-          }}
-        >
-          {tab === "home" && (
-            <HomeView data={data} balances={balances} totalBalance={totalBalance} totals={totals} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} />
-          )}
-          {tab === "txns" && (
-            <TxnsView data={data} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} />
-          )}
-          {tab === "accounts" && (
-            <AccountsView data={data} balances={balances} onAdd={() => setSheet("account")} onDelete={deleteAccount} />
-          )}
-          {tab === "goals" && (
-            <GoalsView data={data} onAdd={() => setSheet("goal")} onDelete={deleteGoal} onAddFunds={addToGoal} />
-          )}
-          {tab === "reports" && <ReportsView data={data} totals={totals} />}
+          <main
+            className="max-w-[1080px] mx-auto pb-24 md:pb-10"
+            style={{ paddingTop: hasFirebaseConfig ? 0 : "env(safe-area-inset-top, 0px)" }}
+          >
+            {tab === "home" && (
+              <HomeView data={data} balances={balances} totalBalance={totalBalance} totals={totals} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} />
+            )}
+            {tab === "txns" && (
+              <FaturaView data={data} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} />
+            )}
+            {tab === "accounts" && (
+              <AccountsView data={data} balances={balances} onAdd={() => setSheet("account")} onDelete={deleteAccount} />
+            )}
+            {tab === "goals" && (
+              <GoalsView data={data} onAdd={() => setSheet("goal")} onDelete={deleteGoal} onAddFunds={addToGoal} />
+            )}
+            {tab === "reports" && <ReportsView data={data} totals={totals} />}
+          </main>
         </div>
-
-        <TabBar tab={tab} setTab={setTab} />
-
-        {sheet === "txn" && (
-          <AddTxnSheet
-            data={data}
-            onClose={() => setSheet(null)}
-            onSave={(t) => { addTransaction(t); setSheet(null); }}
-          />
-        )}
-        {sheet === "account" && (
-          <AddAccountSheet onClose={() => setSheet(null)} onSave={(a) => { addAccount(a); setSheet(null); }} />
-        )}
-        {sheet === "goal" && (
-          <AddGoalSheet onClose={() => setSheet(null)} onSave={(g) => { addGoal(g); setSheet(null); }} />
-        )}
-
-        {saveError && (
-          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 fin-mono text-[11px] px-3 py-1.5 rounded-full" style={{ background: "var(--expense)", color: "#fff" }}>
-            Não foi possível salvar
-          </div>
-        )}
       </div>
+
+      <TabBar tab={tab} setTab={setTab} />
+
+      {sheet === "txn" && (
+        <AddTxnSheet
+          data={data}
+          onClose={() => setSheet(null)}
+          onSave={(t) => { addTransaction(t); setSheet(null); }}
+        />
+      )}
+      {sheet === "account" && (
+        <AddAccountSheet onClose={() => setSheet(null)} onSave={(a) => { addAccount(a); setSheet(null); }} />
+      )}
+      {sheet === "goal" && (
+        <AddGoalSheet onClose={() => setSheet(null)} onSave={(g) => { addGoal(g); setSheet(null); }} />
+      )}
+
+      {saveError && (
+        <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 fin-mono text-[11px] px-3 py-1.5 rounded-full z-40" style={{ background: "var(--expense)", color: "#fff" }}>
+          Não foi possível salvar
+        </div>
+      )}
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* Navegação                                                              */
+/* ---------------------------------------------------------------------- */
+
+const NAV_ITEMS = [
+  { id: "home", label: "Início", Icon: HomeIcon },
+  { id: "txns", label: "Fatura", Icon: Receipt },
+  { id: "accounts", label: "Contas", Icon: Landmark },
+  { id: "goals", label: "Metas", Icon: Target },
+  { id: "reports", label: "Relatórios", Icon: BarChart3 },
+];
+
+function SidebarNav({ tab, setTab, user, onSignIn, onSignOut }) {
+  return (
+    <aside
+      className="hidden md:flex md:flex-col md:w-60 md:h-dvh md:sticky md:top-0 md:flex-shrink-0 px-4 py-6"
+      style={{ borderRight: "1px solid var(--line)", background: "var(--card)" }}
+    >
+      <div className="flex items-center gap-2.5 px-2 mb-8">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--ink)" }}>
+          <Wallet size={17} color="var(--card)" />
+        </div>
+        <span className="fin-mono font-semibold text-[15px]">Financeiro</span>
+      </div>
+
+      <nav className="flex flex-col gap-1">
+        {NAV_ITEMS.map(({ id, label, Icon }) => {
+          const active = tab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left"
+              style={{
+                background: active ? "var(--card)" : "transparent",
+                color: active ? "var(--ink)" : "var(--muted)",
+                border: active ? "1px solid var(--line)" : "1px solid transparent",
+              }}
+            >
+              <Icon size={17} strokeWidth={active ? 2.4 : 1.8} />
+              <span className="fin-mono text-[13px]">{label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {hasFirebaseConfig && (
+        <div className="mt-auto pt-4 px-2" style={{ borderTop: "1px solid var(--line)" }}>
+          {user ? (
+            <div className="flex items-center gap-2 min-w-0 mb-2">
+              {user.photoURL && <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />}
+              <span className="fin-mono text-[11.5px] truncate" style={{ color: "var(--muted)" }}>
+                {user.displayName ? user.displayName.split(" ")[0] : user.email}
+              </span>
+            </div>
+          ) : (
+            <div className="fin-mono text-[11px] mb-2" style={{ color: "var(--muted)" }}>Dados salvos neste aparelho</div>
+          )}
+          <button
+            onClick={user ? onSignOut : onSignIn}
+            className="fin-mono text-[11.5px] flex items-center gap-1.5"
+            style={{ color: "var(--navy)" }}
+          >
+            {user ? <><LogOut size={13} /> Sair</> : "Entrar com Google"}
+          </button>
+        </div>
+      )}
+    </aside>
   );
 }
 
@@ -446,19 +518,12 @@ export default function App() {
 /* ---------------------------------------------------------------------- */
 
 function TabBar({ tab, setTab }) {
-  const tabs = [
-    { id: "home", label: "Início", Icon: HomeIcon },
-    { id: "txns", label: "Lançar", Icon: Receipt },
-    { id: "accounts", label: "Contas", Icon: Landmark },
-    { id: "goals", label: "Metas", Icon: Target },
-    { id: "reports", label: "Relatórios", Icon: BarChart3 },
-  ];
   return (
     <div
-      className="absolute bottom-0 left-0 right-0 flex items-stretch justify-between px-1"
-      style={{ height: 68, background: "var(--card)", borderTop: "1px solid var(--line)" }}
+      className="md:hidden fixed bottom-0 left-0 right-0 flex items-stretch justify-between px-1 z-20"
+      style={{ height: 68, background: "var(--card)", borderTop: "1px solid var(--line)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      {tabs.map(({ id, label, Icon }) => {
+      {NAV_ITEMS.map(({ id, label, Icon }) => {
         const active = tab === id;
         return (
           <button
@@ -483,46 +548,52 @@ function TabBar({ tab, setTab }) {
 function HomeView({ data, totalBalance, totals, onDelete, onAdd }) {
   const recent = data.transactions.slice(0, 6);
   return (
-    <div className="px-5 pt-2 pb-6">
-      <div className="fin-mono text-[10px] uppercase tracking-[0.2em] mb-1" style={{ color: "var(--muted)" }}>Saldo geral</div>
-      <div className="fin-mono font-semibold" style={{ fontSize: 34, color: "var(--ink)" }}>{fmt(totalBalance)}</div>
-
-      <div className="fin-tear my-4" style={{ background: "var(--line)" }} />
-
-      <div className="flex gap-3 mb-5">
-        <div className="flex-1 rounded-2xl px-3.5 py-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-          <div className="flex items-center gap-1.5 mb-1" style={{ color: "var(--income)" }}>
-            <ArrowUpRight size={14} />
-            <span className="fin-mono text-[10px] uppercase tracking-wider">Receitas</span>
-          </div>
-          <div className="fin-mono font-semibold text-[16px]">{fmt(totals.income)}</div>
-        </div>
-        <div className="flex-1 rounded-2xl px-3.5 py-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-          <div className="flex items-center gap-1.5 mb-1" style={{ color: "var(--expense)" }}>
-            <ArrowDownRight size={14} />
-            <span className="fin-mono text-[10px] uppercase tracking-wider">Despesas</span>
-          </div>
-          <div className="fin-mono font-semibold text-[16px]">{fmt(totals.expense)}</div>
-        </div>
-      </div>
-
-      <button onClick={onAdd} className="fin-btn-primary w-full rounded-2xl py-3 text-[13px] mb-6 flex items-center justify-center gap-2">
-        <Plus size={16} /> Novo lançamento
-      </button>
-
-      <div className="flex items-center justify-between mb-2">
-        <span className="fin-mono text-[11px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Extrato recente</span>
-      </div>
-
-      {recent.length === 0 ? (
-        <EmptyState text="Nenhum lançamento ainda. Toque em “Novo lançamento” para começar." />
-      ) : (
+    <div className="px-5 md:px-8 pt-2 md:pt-8 pb-6">
+      <div className="md:grid md:grid-cols-[340px_1fr] md:gap-8 md:items-start">
         <div>
-          {recent.map((t) => (
-            <TxnRow key={t.id} t={t} data={data} onDelete={onDelete} />
-          ))}
+          <div className="fin-mono text-[10px] uppercase tracking-[0.2em] mb-1" style={{ color: "var(--muted)" }}>Saldo geral</div>
+          <div className="fin-mono font-semibold" style={{ fontSize: 34, color: "var(--ink)" }}>{fmt(totalBalance)}</div>
+
+          <div className="fin-tear my-4" style={{ background: "var(--line)" }} />
+
+          <div className="flex gap-3 mb-5">
+            <div className="flex-1 rounded-2xl px-3.5 py-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+              <div className="flex items-center gap-1.5 mb-1" style={{ color: "var(--income)" }}>
+                <ArrowUpRight size={14} />
+                <span className="fin-mono text-[10px] uppercase tracking-wider">Receitas</span>
+              </div>
+              <div className="fin-mono font-semibold text-[16px]">{fmt(totals.income)}</div>
+            </div>
+            <div className="flex-1 rounded-2xl px-3.5 py-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+              <div className="flex items-center gap-1.5 mb-1" style={{ color: "var(--expense)" }}>
+                <ArrowDownRight size={14} />
+                <span className="fin-mono text-[10px] uppercase tracking-wider">Despesas</span>
+              </div>
+              <div className="fin-mono font-semibold text-[16px]">{fmt(totals.expense)}</div>
+            </div>
+          </div>
+
+          <button onClick={onAdd} className="fin-btn-primary w-full rounded-2xl py-3 text-[13px] mb-6 md:mb-0 flex items-center justify-center gap-2">
+            <Plus size={16} /> Novo lançamento
+          </button>
         </div>
-      )}
+
+        <div>
+          <div className="flex items-center justify-between mb-2 md:mt-1">
+            <span className="fin-mono text-[11px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Extrato recente</span>
+          </div>
+
+          {recent.length === 0 ? (
+            <EmptyState text="Nenhum lançamento ainda. Toque em “Novo lançamento” para começar." />
+          ) : (
+            <div className="md:rounded-2xl md:px-4 md:border" style={{ borderColor: "var(--line)", background: "transparent" }}>
+              {recent.map((t) => (
+                <TxnRow key={t.id} t={t} data={data} onDelete={onDelete} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -560,53 +631,118 @@ function TxnRow({ t, data, onDelete }) {
 }
 
 /* ---------------------------------------------------------------------- */
-/* Lançamentos                                                            */
+/* Fatura (extrato organizado por mês, como uma fatura de cartão)          */
 /* ---------------------------------------------------------------------- */
 
-function TxnsView({ data, onDelete, onAdd }) {
+function shiftMonth(monthStr, delta) {
+  const [y, m] = monthStr.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return d.toISOString().slice(0, 7);
+}
+
+function FaturaView({ data, onDelete, onAdd }) {
+  const [month, setMonth] = useState(() => todayISO().slice(0, 7));
   const [filter, setFilter] = useState("all");
 
+  const monthTxns = useMemo(() => {
+    return data.transactions
+      .filter((t) => monthKey(t.date) === month && (filter === "all" || t.categoryId === filter))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [data.transactions, month, filter]);
+
+  const monthTotals = useMemo(
+    () =>
+      monthTxns.reduce(
+        (acc, t) => {
+          if (t.type === "income") acc.income += t.amount;
+          else acc.expense += t.amount;
+          return acc;
+        },
+        { income: 0, expense: 0 }
+      ),
+    [monthTxns]
+  );
+
   const grouped = useMemo(() => {
-    const filtered = data.transactions.filter((t) => filter === "all" || t.categoryId === filter);
     const map = {};
-    filtered.forEach((t) => {
-      const key = monthKey(t.date);
-      if (!map[key]) map[key] = [];
-      map[key].push(t);
+    monthTxns.forEach((t) => {
+      if (!map[t.date]) map[t.date] = [];
+      map[t.date].push(t);
     });
-    return Object.entries(map).sort((a, b) => (a[0] < b[0] ? 1 : -1));
-  }, [data.transactions, filter]);
+    return Object.entries(map);
+  }, [monthTxns]);
+
+  const [y, m] = month.split("-").map(Number);
+  const net = monthTotals.income - monthTotals.expense;
+  const isCurrent = month === todayISO().slice(0, 7);
 
   return (
-    <div className="px-5 pt-3 pb-6">
+    <div className="px-5 md:px-8 pt-3 md:pt-8 pb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Lançamentos</h2>
-        <button onClick={onAdd} className="fin-btn-primary rounded-full w-8 h-8 flex items-center justify-center">
+        <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Fatura</h2>
+        <button onClick={onAdd} className="fin-btn-primary rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
           <Plus size={16} />
         </button>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-3 mb-1" style={{ scrollbarWidth: "none" }}>
-        <FilterChip active={filter === "all"} onClick={() => setFilter("all")} label="Todas" />
-        {data.categories.map((c) => (
-          <FilterChip key={c.id} active={filter === c.id} onClick={() => setFilter(c.id)} label={c.name} color={c.color} />
-        ))}
-      </div>
-
-      {grouped.length === 0 ? (
-        <EmptyState text="Nada por aqui ainda." />
-      ) : (
-        grouped.map(([month, txns]) => (
-          <div key={month} className="mb-4">
-            <div className="fin-mono text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--muted)" }}>
-              {MONTH_NAMES[parseInt(month.slice(5, 7), 10) - 1]} {month.slice(0, 4)}
+      <div className="md:grid md:grid-cols-[300px_1fr] md:gap-8 md:items-start">
+        <div className="md:sticky md:top-8">
+          {/* Cartão de fatura, com navegação de mês */}
+          <div className="rounded-2xl px-4 py-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+            <div className="flex items-center justify-between mb-3">
+              <button onClick={() => setMonth((m) => shiftMonth(m, -1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
+                <ChevronLeft size={15} />
+              </button>
+              <div className="text-center">
+                <div className="fin-mono text-[13.5px] font-semibold">{MONTH_NAMES[m - 1]} {y}</div>
+                {isCurrent && <div className="fin-mono text-[9px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>Mês atual</div>}
+              </div>
+              <button onClick={() => setMonth((m) => shiftMonth(m, 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
+                <ChevronRight size={15} />
+              </button>
             </div>
-            {txns.map((t) => (
-              <TxnRow key={t.id} t={t} data={data} onDelete={onDelete} />
+
+            <div className="fin-tear mb-3" style={{ background: "var(--line)" }} />
+
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="fin-mono text-[11px]" style={{ color: "var(--income)" }}>Receitas</span>
+              <span className="fin-mono text-[13px] font-semibold">{fmt(monthTotals.income)}</span>
+            </div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="fin-mono text-[11px]" style={{ color: "var(--expense)" }}>Despesas</span>
+              <span className="fin-mono text-[13px] font-semibold">{fmt(monthTotals.expense)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-3" style={{ borderTop: "1px dashed var(--line)" }}>
+              <span className="fin-mono text-[11.5px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>Total do mês</span>
+              <span className="fin-mono text-[16px] font-semibold" style={{ color: net >= 0 ? "var(--income)" : "var(--expense)" }}>{fmt(net)}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-1.5 overflow-x-auto pb-1 md:flex-wrap" style={{ scrollbarWidth: "none" }}>
+            <FilterChip active={filter === "all"} onClick={() => setFilter("all")} label="Todas" />
+            {data.categories.map((c) => (
+              <FilterChip key={c.id} active={filter === c.id} onClick={() => setFilter(c.id)} label={c.name} color={c.color} />
             ))}
           </div>
-        ))
-      )}
+        </div>
+
+        <div className="mt-4 md:mt-0">
+          {grouped.length === 0 ? (
+            <EmptyState text="Nenhum lançamento neste mês." />
+          ) : (
+            grouped.map(([date, txns]) => (
+              <div key={date} className="mb-4">
+                <div className="fin-mono text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--muted)" }}>
+                  {fmtDate(date)}
+                </div>
+                {txns.map((t) => (
+                  <TxnRow key={t.id} t={t} data={data} onDelete={onDelete} />
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -634,7 +770,7 @@ function FilterChip({ active, onClick, label, color }) {
 
 function AccountsView({ data, balances, onAdd, onDelete }) {
   return (
-    <div className="px-5 pt-3 pb-6">
+    <div className="px-5 md:px-8 pt-3 md:pt-8 pb-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Contas e cartões</h2>
         <button onClick={onAdd} className="fin-btn-primary rounded-full w-8 h-8 flex items-center justify-center">
@@ -642,22 +778,24 @@ function AccountsView({ data, balances, onAdd, onDelete }) {
         </button>
       </div>
 
-      {data.accounts.map((a) => {
-        const bal = balances[a.id] || 0;
-        return (
-          <div key={a.id} className="flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-2.5" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-            <AccountBadge account={a} size={40} />
-            <div className="flex-1">
-              <div className="text-[14px]" style={{ fontWeight: 500 }}>{a.name}</div>
-              <div className="fin-mono text-[10.5px]" style={{ color: "var(--muted)" }}>Saldo inicial: {fmt(a.initialBalance)}</div>
+      <div className="md:grid md:grid-cols-2 md:gap-3">
+        {data.accounts.map((a) => {
+          const bal = balances[a.id] || 0;
+          return (
+            <div key={a.id} className="flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-2.5 md:mb-0" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+              <AccountBadge account={a} size={40} />
+              <div className="flex-1 min-w-0">
+                <div className="text-[14px] truncate" style={{ fontWeight: 500 }}>{a.name}</div>
+                <div className="fin-mono text-[10.5px]" style={{ color: "var(--muted)" }}>Saldo inicial: {fmt(a.initialBalance)}</div>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <div className="fin-mono font-semibold text-[14px]" style={{ color: bal >= 0 ? "var(--ink)" : "var(--expense)" }}>{fmt(bal)}</div>
+                <button onClick={() => onDelete(a.id)} className="fin-mono text-[10px] mt-0.5" style={{ color: "var(--muted)" }}>remover</button>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="fin-mono font-semibold text-[14px]" style={{ color: bal >= 0 ? "var(--ink)" : "var(--expense)" }}>{fmt(bal)}</div>
-              <button onClick={() => onDelete(a.id)} className="fin-mono text-[10px] mt-0.5" style={{ color: "var(--muted)" }}>remover</button>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -668,7 +806,7 @@ function AccountsView({ data, balances, onAdd, onDelete }) {
 
 function GoalsView({ data, onAdd, onDelete, onAddFunds }) {
   return (
-    <div className="px-5 pt-3 pb-6">
+    <div className="px-5 md:px-8 pt-3 md:pt-8 pb-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Metas de economia</h2>
         <button onClick={onAdd} className="fin-btn-primary rounded-full w-8 h-8 flex items-center justify-center">
@@ -679,7 +817,9 @@ function GoalsView({ data, onAdd, onDelete, onAddFunds }) {
       {data.goals.length === 0 ? (
         <EmptyState text="Crie uma meta para acompanhar seu progresso, como “Viagem” ou “Reserva de emergência”." />
       ) : (
-        data.goals.map((g) => <GoalCard key={g.id} g={g} onDelete={onDelete} onAddFunds={onAddFunds} />)
+        <div className="md:grid md:grid-cols-2 md:gap-3">
+          {data.goals.map((g) => <GoalCard key={g.id} g={g} onDelete={onDelete} onAddFunds={onAddFunds} />)}
+        </div>
       )}
     </div>
   );
@@ -692,7 +832,7 @@ function GoalCard({ g, onDelete, onAddFunds }) {
   const done = g.currentAmount >= g.targetAmount;
 
   return (
-    <div className="rounded-2xl px-4 py-3.5 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+    <div className="rounded-2xl px-4 py-3.5 mb-3 md:mb-0" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Target size={15} color={g.color} />
@@ -776,10 +916,10 @@ function ReportsView({ data, totals }) {
   const hasData = data.transactions.length > 0;
 
   return (
-    <div className="px-5 pt-3 pb-6">
+    <div className="px-5 md:px-8 pt-3 md:pt-8 pb-6">
       <h2 className="fin-mono text-[13px] uppercase tracking-widest mb-3" style={{ color: "var(--muted)" }}>Relatórios</h2>
 
-      <div className="flex gap-3 mb-5">
+      <div className="flex gap-3 mb-5 md:max-w-[500px]">
         <div className="flex-1 rounded-2xl px-3.5 py-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
           <div className="fin-mono text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--income)" }}>Receitas totais</div>
           <div className="fin-mono font-semibold text-[15px]">{fmt(totals.income)}</div>
@@ -793,8 +933,8 @@ function ReportsView({ data, totals }) {
       {!hasData ? (
         <EmptyState text="Adicione lançamentos para ver seus relatórios aqui." />
       ) : (
-        <>
-          <div className="rounded-2xl px-3 py-4 mb-5" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <div className="md:grid md:grid-cols-2 md:gap-5">
+          <div className="rounded-2xl px-3 py-4 mb-5 md:mb-0" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
             <div className="fin-mono text-[11px] uppercase tracking-wider mb-2 px-1" style={{ color: "var(--muted)" }}>Despesas por categoria</div>
             <div style={{ width: "100%", height: 190 }}>
               <ResponsiveContainer>
@@ -831,7 +971,7 @@ function ReportsView({ data, totals }) {
               </ResponsiveContainer>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
