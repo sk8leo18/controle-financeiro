@@ -3,7 +3,7 @@ import {
   Plus, Wallet, TrendingUp, Home as HomeIcon, Receipt, PiggyBank, BarChart3,
   Trash2, X, Utensils, Car, Gamepad2, HeartPulse, GraduationCap, ShoppingBag,
   MoreHorizontal, CreditCard, Target, ArrowUpRight, ArrowDownRight, Landmark,
-  Check, ChevronLeft, ChevronRight, LogOut
+  Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -43,6 +43,31 @@ const DEFAULT_ACCOUNTS = [
 
 const PALETTE = ["#A63D40", "#2F6F4F", "#1F3A5F", "#B08D2B", "#6B4C93", "#3A7A7A", "#8A5A2B", "#8A3A5C", "#4C6B8A", "#6E756A"];
 
+const THEMES = {
+  light: {
+    "--paper": "#E4E8E2",
+    "--ink": "#1B2A22",
+    "--navy": "#1F3A5F",
+    "--expense": "#A63D40",
+    "--income": "#2F6F4F",
+    "--gold": "#B08D2B",
+    "--card": "#FBFAF6",
+    "--muted": "#6E756A",
+    "--line": "#C9CFC3",
+  },
+  dark: {
+    "--paper": "#12181A",
+    "--ink": "#ECEAE2",
+    "--navy": "#7FA6D6",
+    "--expense": "#E0898C",
+    "--income": "#74C79B",
+    "--gold": "#D9BB6C",
+    "--card": "#1D2523",
+    "--muted": "#8B958E",
+    "--line": "#333F3A",
+  },
+};
+
 // Selos coloridos (iniciais + cor da marca) — não são os logotipos oficiais,
 // que são propriedade registrada de cada instituição.
 const BANKS = [
@@ -69,7 +94,81 @@ const fmtDate = (iso) => {
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const monthKey = (iso) => iso.slice(0, 7);
 
+// Histórico de novidades do app — atualize este array a cada leva de melhorias.
+const CHANGELOG = [
+  {
+    version: 5,
+    title: "Modo escuro e calculadora de salário",
+    items: [
+      "Botão para alternar entre modo claro e escuro, com preferência salva",
+      "Corrigido um bug de cores invertidas em alguns celulares Android",
+      "Nova aba \"Salário\": calcula o desconto de INSS pela tabela oficial de 2026 e mostra o salário líquido considerando o consignado",
+    ],
+  },
+  {
+    version: 4,
+    title: "Layout novo para PC e app instalável",
+    items: [
+      "Menu lateral e layout em colunas ao abrir no computador",
+      "App agora pode ser empacotado como aplicativo Android (sem abrir navegador)",
+      "Ajustes de área segura para funcionar bem em qualquer celular",
+    ],
+  },
+  {
+    version: 3,
+    title: "Fatura mensal",
+    items: [
+      "O extrato agora é organizado por mês, como uma fatura de cartão",
+      "Navegação simples entre meses com total de receitas, despesas e saldo",
+    ],
+  },
+  {
+    version: 2,
+    title: "Login com Google",
+    items: [
+      "Os dados agora podem ser salvos na nuvem e sincronizados entre aparelhos",
+      "Lançamentos feitos antes do login são migrados automaticamente",
+    ],
+  },
+  {
+    version: 1,
+    title: "Lançamento do app",
+    items: [
+      "Controle de receitas, despesas, contas, metas e relatórios com gráficos",
+      "Categorias e contas personalizáveis, com selos de bancos conhecidos",
+    ],
+  },
+];
+const CHANGELOG_LATEST_VERSION = CHANGELOG[0].version;
+
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+// Tabela oficial do INSS 2026 (Portaria Interministerial MPS/MF, vigente desde jan/2026)
+// Teto de contribuição: R$ 8.475,55 · Desconto máximo: ~R$ 988,09
+const INSS_FAIXAS_2026 = [
+  { ate: 1621.00, aliquota: 0.075 },
+  { ate: 2902.84, aliquota: 0.09 },
+  { ate: 4354.27, aliquota: 0.12 },
+  { ate: 8475.55, aliquota: 0.14 },
+];
+
+function calcularINSS(salarioBruto) {
+  const teto = INSS_FAIXAS_2026[INSS_FAIXAS_2026.length - 1].ate;
+  const base = Math.min(Math.max(salarioBruto, 0), teto);
+  let total = 0;
+  let anterior = 0;
+  const faixas = [];
+  for (const { ate, aliquota } of INSS_FAIXAS_2026) {
+    if (base > anterior) {
+      const fatia = Math.min(base, ate) - anterior;
+      const valor = fatia * aliquota;
+      total += valor;
+      faixas.push({ de: anterior, ate: Math.min(base, ate), aliquota, valor });
+    }
+    anterior = ate;
+  }
+  return { total, faixas };
+}
 
 /* ---------------------------------------------------------------------- */
 /* Estilos globais                                                        */
@@ -79,7 +178,8 @@ const GlobalStyle = () => (
   <style>{`
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
-    .fin-app { font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); }
+    :root { color-scheme: light dark; }
+    .fin-app { font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); color-scheme: light dark; transition: background-color .15s ease, color .15s ease; }
     .fin-mono { font-family: 'IBM Plex Mono', monospace; }
     .fin-app * { box-sizing: border-box; }
 
@@ -218,6 +318,45 @@ export default function App() {
   const [saveError, setSaveError] = useState(false);
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(!hasFirebaseConfig);
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem("financas-theme");
+      if (saved === "light" || saved === "dark") return saved;
+    } catch (e) {}
+    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      return "dark";
+    }
+    return "light";
+  });
+
+  // Salvar preferência de tema e atualizar a cor da barra do navegador/app
+  useEffect(() => {
+    try {
+      localStorage.setItem("financas-theme", theme);
+    } catch (e) {}
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", THEMES[theme]["--paper"]);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
+
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [seenVersion, setSeenVersion] = useState(() => {
+    try {
+      return parseInt(localStorage.getItem("financas-changelog-seen") || "0", 10);
+    } catch (e) {
+      return 0;
+    }
+  });
+  const hasNewChangelog = seenVersion < CHANGELOG_LATEST_VERSION;
+
+  const openChangelog = () => {
+    setShowChangelog(true);
+    setSeenVersion(CHANGELOG_LATEST_VERSION);
+    try {
+      localStorage.setItem("financas-changelog-seen", String(CHANGELOG_LATEST_VERSION));
+    } catch (e) {}
+  };
 
   // Observar login/logout com Google
   useEffect(() => {
@@ -258,10 +397,10 @@ export default function App() {
         if (res && res.value) {
           setData(JSON.parse(res.value));
         } else {
-          setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [] });
+          setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" } });
         }
       } catch (e) {
-        setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [] });
+        setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" } });
       } finally {
         setLoaded(true);
       }
@@ -317,6 +456,10 @@ export default function App() {
     }));
   }, []);
 
+  const updateSettings = useCallback((patch) => {
+    setData((d) => ({ ...d, settings: { ...(d.settings || {}), ...patch } }));
+  }, []);
+
   const balances = useMemo(() => {
     if (!data) return {};
     const map = {};
@@ -349,17 +492,7 @@ export default function App() {
     );
   }
 
-  const cssVars = {
-    "--paper": "#E4E8E2",
-    "--ink": "#1B2A22",
-    "--navy": "#1F3A5F",
-    "--expense": "#A63D40",
-    "--income": "#2F6F4F",
-    "--gold": "#B08D2B",
-    "--card": "#FBFAF6",
-    "--muted": "#6E756A",
-    "--line": "#C9CFC3",
-  };
+  const cssVars = THEMES[theme];
 
   return (
     <div
@@ -368,15 +501,15 @@ export default function App() {
     >
       <GlobalStyle />
       <div className="md:flex md:items-start">
-        <SidebarNav tab={tab} setTab={setTab} user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} />
+        <SidebarNav tab={tab} setTab={setTab} user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} theme={theme} onToggleTheme={toggleTheme} onOpenChangelog={openChangelog} hasNewChangelog={hasNewChangelog} />
 
         <div className="flex-1 min-w-0 md:ml-60">
-          {hasFirebaseConfig && (
-            <div
-              className="md:hidden flex items-center justify-between px-5"
-              style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)", paddingBottom: 8 }}
-            >
-              {user ? (
+          <div
+            className="md:hidden flex items-center justify-between px-5"
+            style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)", paddingBottom: 8 }}
+          >
+            {hasFirebaseConfig ? (
+              user ? (
                 <div className="flex items-center gap-2 min-w-0">
                   {user.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />}
                   <span className="fin-mono text-[11px] truncate" style={{ color: "var(--muted)" }}>
@@ -385,20 +518,43 @@ export default function App() {
                 </div>
               ) : (
                 <span className="fin-mono text-[11px]" style={{ color: "var(--muted)" }}>Dados salvos neste aparelho</span>
+              )
+            ) : <span />}
+            <div className="flex items-center gap-3">
+              {hasFirebaseConfig && (
+                <button
+                  onClick={user ? handleSignOut : handleSignIn}
+                  className="fin-mono text-[11px] flex-shrink-0"
+                  style={{ color: "var(--navy)" }}
+                >
+                  {user ? "Sair" : "Entrar com Google"}
+                </button>
               )}
               <button
-                onClick={user ? handleSignOut : handleSignIn}
-                className="fin-mono text-[11px] flex-shrink-0"
-                style={{ color: "var(--navy)" }}
+                onClick={openChangelog}
+                aria-label="Novidades"
+                className="relative w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--card)", border: "1px solid var(--line)" }}
               >
-                {user ? "Sair" : "Entrar com Google"}
+                <Bell size={13} />
+                {hasNewChangelog && (
+                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full" style={{ background: "var(--expense)" }} />
+                )}
+              </button>
+              <button
+                onClick={toggleTheme}
+                aria-label="Alternar tema"
+                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+              >
+                {theme === "light" ? <Moon size={13} /> : <Sun size={13} />}
               </button>
             </div>
-          )}
+          </div>
 
           <main
             className="max-w-[1080px] mx-auto pb-24 md:pb-10"
-            style={{ paddingTop: hasFirebaseConfig ? 0 : "env(safe-area-inset-top, 0px)" }}
+            style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
           >
             {tab === "home" && (
               <HomeView data={data} balances={balances} totalBalance={totalBalance} totals={totals} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} />
@@ -413,6 +569,7 @@ export default function App() {
               <GoalsView data={data} onAdd={() => setSheet("goal")} onDelete={deleteGoal} onAddFunds={addToGoal} />
             )}
             {tab === "reports" && <ReportsView data={data} totals={totals} />}
+            {tab === "salary" && <SalaryView data={data} onUpdateSettings={updateSettings} />}
           </main>
         </div>
       </div>
@@ -432,6 +589,7 @@ export default function App() {
       {sheet === "goal" && (
         <AddGoalSheet onClose={() => setSheet(null)} onSave={(g) => { addGoal(g); setSheet(null); }} />
       )}
+      {showChangelog && <ChangelogSheet onClose={() => setShowChangelog(false)} />}
 
       {saveError && (
         <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 fin-mono text-[11px] px-3 py-1.5 rounded-full z-40" style={{ background: "var(--expense)", color: "#fff" }}>
@@ -451,20 +609,44 @@ const NAV_ITEMS = [
   { id: "txns", label: "Fatura", Icon: Receipt },
   { id: "accounts", label: "Contas", Icon: Landmark },
   { id: "goals", label: "Metas", Icon: Target },
+  { id: "salary", label: "Salário", Icon: Calculator },
   { id: "reports", label: "Relatórios", Icon: BarChart3 },
 ];
 
-function SidebarNav({ tab, setTab, user, onSignIn, onSignOut }) {
+function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleTheme, onOpenChangelog, hasNewChangelog }) {
   return (
     <aside
       className="hidden md:flex md:flex-col md:w-60 md:h-dvh md:sticky md:top-0 md:flex-shrink-0 px-4 py-6"
       style={{ borderRight: "1px solid var(--line)", background: "var(--card)" }}
     >
-      <div className="flex items-center gap-2.5 px-2 mb-8">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--ink)" }}>
-          <Wallet size={17} color="var(--card)" />
+      <div className="flex items-center justify-between px-2 mb-8">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--ink)" }}>
+            <Wallet size={17} color="var(--card)" />
+          </div>
+          <span className="fin-mono font-semibold text-[15px]">Financeiro</span>
         </div>
-        <span className="fin-mono font-semibold text-[15px]">Financeiro</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onOpenChangelog}
+            aria-label="Novidades"
+            className="relative w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
+          >
+            <Bell size={14} />
+            {hasNewChangelog && (
+              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full" style={{ background: "var(--expense)" }} />
+            )}
+          </button>
+          <button
+            onClick={onToggleTheme}
+            aria-label="Alternar tema"
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
+          >
+            {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
+        </div>
       </div>
 
       <nav className="flex flex-col gap-1">
@@ -476,7 +658,7 @@ function SidebarNav({ tab, setTab, user, onSignIn, onSignOut }) {
               onClick={() => setTab(id)}
               className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left"
               style={{
-                background: active ? "var(--card)" : "transparent",
+                background: active ? "var(--paper)" : "transparent",
                 color: active ? "var(--ink)" : "var(--muted)",
                 border: active ? "1px solid var(--line)" : "1px solid transparent",
               }}
@@ -974,6 +1156,138 @@ function ReportsView({ data, totals }) {
         </div>
       )}
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* Calculadora de salário (INSS 2026 + consignado)                        */
+/* ---------------------------------------------------------------------- */
+
+function SalaryView({ data, onUpdateSettings }) {
+  const settings = data.settings || {};
+  const grossSalary = parseFloat(settings.grossSalary) || 0;
+  const consignado = parseFloat(settings.consignado) || 0;
+
+  const { total: inss, faixas } = useMemo(() => calcularINSS(grossSalary), [grossSalary]);
+  const totalDescontos = inss + consignado;
+  const liquido = grossSalary - totalDescontos;
+
+  return (
+    <div className="px-5 md:px-8 pt-3 md:pt-8 pb-6">
+      <h2 className="fin-mono text-[13px] uppercase tracking-widest mb-1" style={{ color: "var(--muted)" }}>Calculadora de salário</h2>
+      <p className="text-[12px] mb-4" style={{ color: "var(--muted)" }}>
+        Desconto de INSS calculado pela tabela oficial de 2026 (progressiva, por faixas).
+      </p>
+
+      <div className="md:grid md:grid-cols-[300px_1fr] md:gap-8 md:items-start">
+        <div className="rounded-2xl px-4 py-4 mb-4 md:mb-0" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+          <FieldLabel>Salário bruto (R$)</FieldLabel>
+          <TextInput
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0,00"
+            value={settings.grossSalary || ""}
+            onChange={(e) => onUpdateSettings({ grossSalary: e.target.value })}
+          />
+
+          <FieldLabel>Valor do consignado (R$)</FieldLabel>
+          <TextInput
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0,00"
+            value={settings.consignado || ""}
+            onChange={(e) => onUpdateSettings({ consignado: e.target.value })}
+          />
+
+          <div className="fin-tear my-4" style={{ background: "var(--line)" }} />
+
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="fin-mono text-[11px]" style={{ color: "var(--muted)" }}>Desconto INSS</span>
+            <span className="fin-mono text-[13px] font-semibold" style={{ color: "var(--expense)" }}>{fmt(inss)}</span>
+          </div>
+          <div className="flex items-center justify-between mb-3">
+            <span className="fin-mono text-[11px]" style={{ color: "var(--muted)" }}>Consignado</span>
+            <span className="fin-mono text-[13px] font-semibold" style={{ color: "var(--expense)" }}>{fmt(consignado)}</span>
+          </div>
+          <div className="flex items-center justify-between pt-3 mb-3" style={{ borderTop: "1px dashed var(--line)" }}>
+            <span className="fin-mono text-[11.5px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>Total de descontos</span>
+            <span className="fin-mono text-[15px] font-semibold" style={{ color: "var(--expense)" }}>{fmt(totalDescontos)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="fin-mono text-[12px] uppercase tracking-wider">Salário líquido</span>
+            <span className="fin-mono text-[18px] font-semibold" style={{ color: liquido >= 0 ? "var(--income)" : "var(--expense)" }}>{fmt(liquido)}</span>
+          </div>
+        </div>
+
+        <div>
+          <div className="fin-mono text-[11px] uppercase tracking-wider mb-2" style={{ color: "var(--muted)" }}>Como o INSS foi calculado</div>
+          {grossSalary <= 0 ? (
+            <EmptyState text="Informe o salário bruto para ver o cálculo detalhado por faixa." />
+          ) : (
+            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--line)" }}>
+              {faixas.map((f, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between px-4 py-2.5"
+                  style={{ background: "var(--card)", borderBottom: i < faixas.length - 1 ? "1px dashed var(--line)" : "none" }}
+                >
+                  <div>
+                    <div className="text-[12.5px]" style={{ fontWeight: 500 }}>{fmt(f.de)} → {fmt(f.ate)}</div>
+                    <div className="fin-mono text-[10.5px]" style={{ color: "var(--muted)" }}>Alíquota de {(f.aliquota * 100).toFixed(1).replace(".", ",")}%</div>
+                  </div>
+                  <div className="fin-mono text-[13px] font-semibold" style={{ color: "var(--expense)" }}>{fmt(f.valor)}</div>
+                </div>
+              ))}
+              <div className="flex items-center justify-between px-4 py-2.5" style={{ background: "var(--paper)" }}>
+                <span className="fin-mono text-[11.5px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>Total INSS</span>
+                <span className="fin-mono text-[14px] font-semibold" style={{ color: "var(--expense)" }}>{fmt(inss)}</span>
+              </div>
+            </div>
+          )}
+
+          <p className="text-[11px] mt-4" style={{ color: "var(--muted)" }}>
+            Teto de contribuição do INSS em 2026: {fmt(8475.55)} (desconto máximo de {fmt(988.09)}). Este cálculo não inclui o Imposto de Renda (IRRF), que segue regras adicionais e pode variar conforme dependentes e outras deduções.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* Novidades (changelog)                                                  */
+/* ---------------------------------------------------------------------- */
+
+function ChangelogSheet({ onClose }) {
+  return (
+    <Sheet title="Novidades" onClose={onClose}>
+      {CHANGELOG.map((entry, i) => (
+        <div key={entry.version} className="mb-5 last:mb-0">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: i === 0 ? "var(--gold)" : "var(--paper)" }}>
+              <Sparkles size={13} color={i === 0 ? "#fff" : "var(--muted)"} />
+            </div>
+            <div>
+              <div className="text-[13.5px]" style={{ fontWeight: 600 }}>{entry.title}</div>
+              <div className="fin-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                {i === 0 ? "Mais recente" : `Atualização ${entry.version}`}
+              </div>
+            </div>
+          </div>
+          <ul className="pl-9" style={{ listStyle: "none" }}>
+            {entry.items.map((item, j) => (
+              <li key={j} className="text-[12.5px] mb-1 flex gap-2" style={{ color: "var(--muted)" }}>
+                <span style={{ color: "var(--income)" }}>·</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          {i < CHANGELOG.length - 1 && <div className="fin-dash mt-4" />}
+        </div>
+      ))}
+    </Sheet>
   );
 }
 
