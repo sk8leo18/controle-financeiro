@@ -79,6 +79,19 @@ const BANKS = [
   { name: "Bradesco", color: "#CC092F", initials: "Br" },
   { name: "Inter", color: "#FF7A00", initials: "In" },
   { name: "C6 Bank", color: "#1B1B1B", initials: "C6" },
+  { name: "PicPay", color: "#21C25E", initials: "Pic" },
+  { name: "Mercado Pago", color: "#00AAEF", initials: "MP" },
+  { name: "PagBank", color: "#00A868", initials: "Pag" },
+  { name: "Next", color: "#00E28A", initials: "Nx" },
+  { name: "Neon", color: "#17C3D6", initials: "Ne" },
+  { name: "Will Bank", color: "#6E2FEB", initials: "Wi" },
+  { name: "BTG Pactual", color: "#002639", initials: "BTG" },
+  { name: "Sicoob", color: "#00995D", initials: "Si" },
+  { name: "Sicredi", color: "#7AB51D", initials: "Sc" },
+  { name: "XP Investimentos", color: "#161616", initials: "XP" },
+  { name: "Banco Pan", color: "#F2631F", initials: "Pan" },
+  { name: "Safra", color: "#003865", initials: "Sa" },
+  { name: "Original", color: "#00B8A9", initials: "Or" },
 ];
 
 const uid = () => "id_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -103,7 +116,18 @@ function addDays(dateStr, days) {
 // Histórico de novidades do app — atualize este array a cada leva de melhorias.
 const CHANGELOG = [
   {
+    version: 8,
+    date: "29/07/2026",
+    title: "Menu renomeado e mais bancos/fintechs",
+    items: [
+      "\"Fatura\" agora se chama \"Extrato\" e \"Salário\" virou \"Calculadora\" no menu",
+      "Lista de bancos e fintechs ampliada (PicPay, Mercado Pago, PagBank, Next, Neon, Will Bank, BTG, Sicoob, Sicredi, XP, Banco Pan, Safra, Original e outros)",
+      "Busca dentro da lista de bancos e visual mais organizado na tela de Contas",
+    ],
+  },
+  {
     version: 7,
+    date: "29/07/2026",
     title: "Editar lançamento, comparação mensal e lembretes",
     items: [
       "Agora dá pra editar um lançamento existente (toque nele ou no lápis)",
@@ -113,6 +137,7 @@ const CHANGELOG = [
   },
   {
     version: 6,
+    date: "28/07/2026",
     title: "Busca, parcelamento e confirmação ao apagar",
     items: [
       "Busca por nome ou categoria dentro da Fatura, procurando em todos os meses",
@@ -124,6 +149,7 @@ const CHANGELOG = [
   },
   {
     version: 5,
+    date: "28/07/2026",
     title: "Modo escuro e calculadora de salário",
     items: [
       "Botão para alternar entre modo claro e escuro, com preferência salva",
@@ -133,6 +159,7 @@ const CHANGELOG = [
   },
   {
     version: 4,
+    date: "28/07/2026",
     title: "Layout novo para PC e app instalável",
     items: [
       "Menu lateral e layout em colunas ao abrir no computador",
@@ -142,6 +169,7 @@ const CHANGELOG = [
   },
   {
     version: 3,
+    date: "27/07/2026",
     title: "Fatura mensal",
     items: [
       "O extrato agora é organizado por mês, como uma fatura de cartão",
@@ -150,6 +178,7 @@ const CHANGELOG = [
   },
   {
     version: 2,
+    date: "27/07/2026",
     title: "Login com Google",
     items: [
       "Os dados agora podem ser salvos na nuvem e sincronizados entre aparelhos",
@@ -158,6 +187,7 @@ const CHANGELOG = [
   },
   {
     version: 1,
+    date: "27/07/2026",
     title: "Lançamento do app",
     items: [
       "Controle de receitas, despesas, contas, metas e relatórios com gráficos",
@@ -647,10 +677,10 @@ export default function App() {
 
 const NAV_ITEMS = [
   { id: "home", label: "Início", Icon: HomeIcon },
-  { id: "txns", label: "Fatura", Icon: Receipt },
+  { id: "txns", label: "Extrato", Icon: Receipt },
   { id: "accounts", label: "Contas", Icon: Landmark },
   { id: "goals", label: "Metas", Icon: Target },
-  { id: "salary", label: "Salário", Icon: Calculator },
+  { id: "salary", label: "Calculadora", Icon: Calculator },
   { id: "reports", label: "Relatórios", Icon: BarChart3 },
 ];
 
@@ -1009,7 +1039,7 @@ function FaturaView({ data, onDelete, onAdd, onEdit }) {
   return (
     <div className="px-5 md:px-8 pt-3 md:pt-8 pb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Fatura</h2>
+        <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Extrato</h2>
         <button onClick={onAdd} className="fin-btn-primary rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
           <Plus size={16} />
         </button>
@@ -1148,14 +1178,21 @@ function AccountsView({ data, balances, onAdd, onDelete }) {
         {data.accounts.map((a) => {
           const bal = balances[a.id] || 0;
           return (
-            <div key={a.id} className="flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-2.5 md:mb-0" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-              <AccountBadge account={a} size={40} />
+            <div
+              key={a.id}
+              className="relative flex items-center gap-3 rounded-2xl pl-4 pr-4 py-3.5 mb-2.5 md:mb-0 overflow-hidden"
+              style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+            >
+              <div className="absolute left-0 top-0 bottom-0" style={{ width: 4, background: a.color }} />
+              <AccountBadge account={a} size={44} />
               <div className="flex-1 min-w-0">
-                <div className="text-[14px] truncate" style={{ fontWeight: 500 }}>{a.name}</div>
-                <div className="fin-mono text-[10.5px]" style={{ color: "var(--muted)" }}>Saldo inicial: {fmt(a.initialBalance)}</div>
+                <div className="text-[14px] truncate" style={{ fontWeight: 600 }}>{a.name}</div>
+                <div className="fin-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                  {a.avatarInitials ? "Banco / fintech" : "Carteira"} · Saldo inicial {fmt(a.initialBalance)}
+                </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <div className="fin-mono font-semibold text-[14px]" style={{ color: bal >= 0 ? "var(--ink)" : "var(--expense)" }}>{fmt(bal)}</div>
+                <div className="fin-mono font-semibold text-[14.5px]" style={{ color: bal >= 0 ? "var(--ink)" : "var(--expense)" }}>{fmt(bal)}</div>
                 <div className="flex justify-end mt-0.5">
                   <ConfirmDeleteButton onConfirm={() => onDelete(a.id)} size={12} />
                 </div>
@@ -1458,7 +1495,7 @@ function ChangelogSheet({ onClose }) {
             <div>
               <div className="text-[13.5px]" style={{ fontWeight: 600 }}>{entry.title}</div>
               <div className="fin-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-                {i === 0 ? "Mais recente" : `Atualização ${entry.version}`}
+                {i === 0 ? "Mais recente" : `Atualização ${entry.version}`}{entry.date ? ` · ${entry.date}` : ""}
               </div>
             </div>
           </div>
@@ -1626,6 +1663,7 @@ function AddAccountSheet({ onClose, onSave }) {
   const [color, setColor] = useState(PALETTE[0]);
   const [avatarInitials, setAvatarInitials] = useState(null);
   const [initialBalance, setInitialBalance] = useState("");
+  const [bankSearch, setBankSearch] = useState("");
 
   const canSave = name.trim().length > 0;
 
@@ -1635,23 +1673,44 @@ function AddAccountSheet({ onClose, onSave }) {
     setAvatarInitials(bank.initials);
   };
 
+  const filteredBanks = BANKS.filter((b) => b.name.toLowerCase().includes(bankSearch.trim().toLowerCase()));
+
   return (
     <Sheet title="Nova conta ou cartão" onClose={onClose}>
-      <FieldLabel>Bancos e carteiras (atalho)</FieldLabel>
-      <div className="flex gap-2 flex-wrap mb-1">
-        {BANKS.map((b) => (
-          <button
-            key={b.name}
-            onClick={() => pickBank(b)}
-            className="fin-chip flex flex-col items-center gap-1"
-            style={{ width: 52 }}
-          >
-            <div className="rounded-xl flex items-center justify-center" style={{ width: 40, height: 40, background: b.color, border: avatarInitials === b.initials && name === b.name ? "2px solid var(--ink)" : "2px solid transparent" }}>
-              <span className="fin-mono font-semibold" style={{ color: "#fff", fontSize: 13 }}>{b.initials}</span>
-            </div>
-            <span className="text-[9px] text-center leading-tight" style={{ color: "var(--muted)" }}>{b.name}</span>
-          </button>
-        ))}
+      <FieldLabel>Bancos e fintechs (atalho)</FieldLabel>
+      <div className="relative mb-2">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+        <input
+          type="text"
+          value={bankSearch}
+          onChange={(e) => setBankSearch(e.target.value)}
+          placeholder="Buscar banco…"
+          className="w-full rounded-xl pl-8 pr-3 py-2 text-[12.5px]"
+          style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+        />
+      </div>
+      <div className="grid grid-cols-4 gap-2 mb-1 max-h-56 overflow-y-auto fin-scroll pr-0.5">
+        {filteredBanks.map((b) => {
+          const active = avatarInitials === b.initials && name === b.name;
+          return (
+            <button
+              key={b.name}
+              onClick={() => pickBank(b)}
+              className="fin-chip flex flex-col items-center gap-1 py-1"
+            >
+              <div
+                className="rounded-xl flex items-center justify-center"
+                style={{ width: 40, height: 40, background: b.color, border: active ? "2px solid var(--ink)" : "2px solid transparent", boxShadow: active ? "0 0 0 2px var(--paper)" : "none" }}
+              >
+                <span className="fin-mono font-semibold" style={{ color: "#fff", fontSize: 12 }}>{b.initials}</span>
+              </div>
+              <span className="text-[9px] text-center leading-tight" style={{ color: "var(--muted)" }}>{b.name}</span>
+            </button>
+          );
+        })}
+        {filteredBanks.length === 0 && (
+          <div className="col-span-4 text-center text-[11.5px] py-3" style={{ color: "var(--muted)" }}>Nenhum banco encontrado.</div>
+        )}
       </div>
       <p className="text-[10.5px] mb-2" style={{ color: "var(--muted)" }}>
         Selo com cor e iniciais do banco — não é o logotipo oficial.
