@@ -3,7 +3,7 @@ import {
   Plus, Wallet, TrendingUp, Home as HomeIcon, Receipt, PiggyBank, BarChart3,
   Trash2, X, Utensils, Car, Gamepad2, HeartPulse, GraduationCap, ShoppingBag,
   MoreHorizontal, CreditCard, Target, ArrowUpRight, ArrowDownRight, Landmark,
-  Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles
+  Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles, Search
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -96,6 +96,17 @@ const monthKey = (iso) => iso.slice(0, 7);
 
 // Histórico de novidades do app — atualize este array a cada leva de melhorias.
 const CHANGELOG = [
+  {
+    version: 6,
+    title: "Busca, parcelamento e confirmação ao apagar",
+    items: [
+      "Busca por nome ou categoria dentro da Fatura, procurando em todos os meses",
+      "Lançamentos parcelados: divide o valor total em várias parcelas mensais",
+      "Lançamentos fixos: repete o mesmo valor todo mês automaticamente",
+      "Agora é preciso confirmar antes de apagar qualquer lançamento, conta ou meta",
+      "Corrigido bug do modo claro que deixava campos e telas com aparência escura/invertida em alguns celulares",
+    ],
+  },
   {
     version: 5,
     title: "Modo escuro e calculadora de salário",
@@ -336,6 +347,14 @@ export default function App() {
     } catch (e) {}
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", THEMES[theme]["--paper"]);
+
+    // Trava o color-scheme no tema ativo (em vez de "light dark"), para que
+    // selects, campos de data e a barra de rolagem nativos não fiquem com
+    // aparência diferente do resto do app quando o celular está no tema oposto.
+    document.documentElement.style.colorScheme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    document.body.style.background = THEMES[theme]["--paper"];
+    document.body.style.colorScheme = theme;
   }, [theme]);
 
   const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
@@ -421,8 +440,8 @@ export default function App() {
     return () => clearTimeout(t);
   }, [data, loaded]);
 
-  const addTransaction = useCallback((txn) => {
-    setData((d) => ({ ...d, transactions: [{ ...txn, id: uid() }, ...d.transactions] }));
+  const addTransactions = useCallback((txns) => {
+    setData((d) => ({ ...d, transactions: [...txns.map((t) => ({ ...t, id: uid() })), ...d.transactions] }));
   }, []);
 
   const deleteTransaction = useCallback((id) => {
@@ -497,7 +516,7 @@ export default function App() {
   return (
     <div
       className="fin-app w-full min-h-dvh"
-      style={{ ...cssVars, background: "var(--paper)" }}
+      style={{ ...cssVars, background: "var(--paper)", colorScheme: theme }}
     >
       <GlobalStyle />
       <div className="md:flex md:items-start">
@@ -580,7 +599,7 @@ export default function App() {
         <AddTxnSheet
           data={data}
           onClose={() => setSheet(null)}
-          onSave={(t) => { addTransaction(t); setSheet(null); }}
+          onSave={(txns) => { addTransactions(txns); setSheet(null); }}
         />
       )}
       {sheet === "account" && (
@@ -788,6 +807,38 @@ function EmptyState({ text }) {
   );
 }
 
+function ConfirmDeleteButton({ onConfirm, size = 13 }) {
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!confirming) return;
+    const t = setTimeout(() => setConfirming(false), 3000);
+    return () => clearTimeout(t);
+  }, [confirming]);
+
+  if (confirming) {
+    return (
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); onConfirm(); }}
+          className="fin-mono text-[10px] px-2 py-1 rounded-full"
+          style={{ background: "var(--expense)", color: "#fff" }}
+        >
+          Apagar?
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); setConfirming(false); }} className="p-1 flex-shrink-0" style={{ color: "var(--muted)" }}>
+          <X size={size} />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button onClick={(e) => { e.stopPropagation(); setConfirming(true); }} className="p-1 flex-shrink-0" style={{ color: "var(--muted)" }}>
+      <Trash2 size={size} />
+    </button>
+  );
+}
+
 function TxnRow({ t, data, onDelete }) {
   const cat = data.categories.find((c) => c.id === t.categoryId);
   const acc = data.accounts.find((a) => a.id === t.accountId);
@@ -805,9 +856,7 @@ function TxnRow({ t, data, onDelete }) {
       <div className="fin-mono text-[13.5px] font-semibold" style={{ color: t.type === "income" ? "var(--income)" : "var(--expense)" }}>
         {t.type === "income" ? "+" : "-"}{fmt(t.amount)}
       </div>
-      <button onClick={() => onDelete(t.id)} className="ml-1 p-1" style={{ color: "var(--muted)" }}>
-        <Trash2 size={13} />
-      </button>
+      <ConfirmDeleteButton onConfirm={() => onDelete(t.id)} />
     </div>
   );
 }
@@ -822,15 +871,40 @@ function shiftMonth(monthStr, delta) {
   return d.toISOString().slice(0, 7);
 }
 
+// Soma meses a uma data (YYYY-MM-DD) sem "estourar" para o mês seguinte
+// quando o mês de destino tem menos dias (ex: 31/01 + 1 mês = 28/02, não 03/03).
+function addMonthsClamped(dateStr, months) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const target = new Date(y, m - 1 + months, 1);
+  const daysInTarget = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(d, daysInTarget));
+  return target.toISOString().slice(0, 10);
+}
+
 function FaturaView({ data, onDelete, onAdd }) {
   const [month, setMonth] = useState(() => todayISO().slice(0, 7));
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const isSearching = search.trim().length > 0;
 
   const monthTxns = useMemo(() => {
     return data.transactions
       .filter((t) => monthKey(t.date) === month && (filter === "all" || t.categoryId === filter))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [data.transactions, month, filter]);
+
+  const searchResults = useMemo(() => {
+    if (!isSearching) return [];
+    const q = search.trim().toLowerCase();
+    return data.transactions
+      .filter((t) => {
+        if (filter !== "all" && t.categoryId !== filter) return false;
+        const cat = data.categories.find((c) => c.id === t.categoryId);
+        const haystack = `${t.description || ""} ${cat?.name || ""}`.toLowerCase();
+        return haystack.includes(q);
+      })
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [data.transactions, data.categories, search, filter, isSearching]);
 
   const monthTotals = useMemo(
     () =>
@@ -847,12 +921,12 @@ function FaturaView({ data, onDelete, onAdd }) {
 
   const grouped = useMemo(() => {
     const map = {};
-    monthTxns.forEach((t) => {
+    (isSearching ? searchResults : monthTxns).forEach((t) => {
       if (!map[t.date]) map[t.date] = [];
       map[t.date].push(t);
     });
     return Object.entries(map);
-  }, [monthTxns]);
+  }, [monthTxns, searchResults, isSearching]);
 
   const [y, m] = month.split("-").map(Number);
   const net = monthTotals.income - monthTotals.expense;
@@ -867,19 +941,36 @@ function FaturaView({ data, onDelete, onAdd }) {
         </button>
       </div>
 
+      <div className="relative mb-4">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar lançamento ou categoria…"
+          className="w-full rounded-xl pl-9 pr-8 py-2.5 text-[13px]"
+          style={{ background: "var(--card)", border: "1px solid var(--line)", color: "var(--ink)" }}
+        />
+        {isSearching && (
+          <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }}>
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
       <div className="md:grid md:grid-cols-[300px_1fr] md:gap-8 md:items-start">
         <div className="md:sticky md:top-8">
           {/* Cartão de fatura, com navegação de mês */}
-          <div className="rounded-2xl px-4 py-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+          <div className="rounded-2xl px-4 py-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)", opacity: isSearching ? 0.5 : 1 }}>
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => setMonth((m) => shiftMonth(m, -1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
+              <button onClick={() => setMonth((m) => shiftMonth(m, -1))} disabled={isSearching} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
                 <ChevronLeft size={15} />
               </button>
               <div className="text-center">
                 <div className="fin-mono text-[13.5px] font-semibold">{MONTH_NAMES[m - 1]} {y}</div>
                 {isCurrent && <div className="fin-mono text-[9px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>Mês atual</div>}
               </div>
-              <button onClick={() => setMonth((m) => shiftMonth(m, 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
+              <button onClick={() => setMonth((m) => shiftMonth(m, 1))} disabled={isSearching} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
                 <ChevronRight size={15} />
               </button>
             </div>
@@ -909,8 +1000,13 @@ function FaturaView({ data, onDelete, onAdd }) {
         </div>
 
         <div className="mt-4 md:mt-0">
+          {isSearching && (
+            <div className="fin-mono text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--muted)" }}>
+              {grouped.length === 0 ? "Nenhum resultado" : "Resultados da busca · todos os meses"}
+            </div>
+          )}
           {grouped.length === 0 ? (
-            <EmptyState text="Nenhum lançamento neste mês." />
+            <EmptyState text={isSearching ? "Nenhum lançamento encontrado para essa busca." : "Nenhum lançamento neste mês."} />
           ) : (
             grouped.map(([date, txns]) => (
               <div key={date} className="mb-4">
@@ -972,7 +1068,9 @@ function AccountsView({ data, balances, onAdd, onDelete }) {
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="fin-mono font-semibold text-[14px]" style={{ color: bal >= 0 ? "var(--ink)" : "var(--expense)" }}>{fmt(bal)}</div>
-                <button onClick={() => onDelete(a.id)} className="fin-mono text-[10px] mt-0.5" style={{ color: "var(--muted)" }}>remover</button>
+                <div className="flex justify-end mt-0.5">
+                  <ConfirmDeleteButton onConfirm={() => onDelete(a.id)} size={12} />
+                </div>
               </div>
             </div>
           );
@@ -1021,7 +1119,7 @@ function GoalCard({ g, onDelete, onAddFunds }) {
           <span className="text-[14px]" style={{ fontWeight: 500 }}>{g.name}</span>
           {done && <Check size={13} color="var(--income)" />}
         </div>
-        <button onClick={() => onDelete(g.id)} style={{ color: "var(--muted)" }}><Trash2 size={13} /></button>
+        <ConfirmDeleteButton onConfirm={() => onDelete(g.id)} />
       </div>
       <div className="h-2 rounded-full mb-2 overflow-hidden" style={{ background: "var(--paper)" }}>
         <div className="h-full rounded-full" style={{ width: pct + "%", background: g.color }} />
@@ -1302,11 +1400,38 @@ function AddTxnSheet({ data, onClose, onSave }) {
   const [accountId, setAccountId] = useState(data.accounts[0]?.id || "");
   const [date, setDate] = useState(todayISO());
   const [description, setDescription] = useState("");
+  const [repeatMode, setRepeatMode] = useState("none"); // 'none' | 'installment' | 'fixed'
+  const [repeatCount, setRepeatCount] = useState("2");
 
   const cats = data.categories.filter((c) => c.type === type);
   useEffect(() => { if (cats.length && !cats.find(c => c.id === categoryId)) setCategoryId(cats[0].id); }, [type]);
 
-  const canSave = amount && parseFloat(amount) > 0 && categoryId && accountId && date;
+  const canSave = amount && parseFloat(amount) > 0 && categoryId && accountId && date &&
+    (repeatMode === "none" || (parseInt(repeatCount, 10) >= 2 && parseInt(repeatCount, 10) <= 60));
+
+  const handleSave = () => {
+    const baseAmount = parseFloat(amount);
+    const n = repeatMode === "none" ? 1 : Math.max(2, Math.min(60, parseInt(repeatCount, 10) || 2));
+    const txns = [];
+
+    if (n === 1) {
+      txns.push({ type, amount: baseAmount, categoryId, accountId, date, description });
+    } else {
+      const perInstallment = repeatMode === "installment" ? Math.round((baseAmount / n) * 100) / 100 : baseAmount;
+      for (let i = 0; i < n; i++) {
+        let amt = perInstallment;
+        if (repeatMode === "installment" && i === n - 1) {
+          // ajusta a última parcela para compensar arredondamento
+          amt = Math.round((baseAmount - perInstallment * (n - 1)) * 100) / 100;
+        }
+        const desc = repeatMode === "installment"
+          ? `${description ? description + " " : ""}(${i + 1}/${n})`
+          : description;
+        txns.push({ type, amount: amt, categoryId, accountId, date: addMonthsClamped(date, i), description: desc });
+      }
+    }
+    onSave(txns);
+  };
 
   return (
     <Sheet title="Novo lançamento" onClose={onClose}>
@@ -1323,7 +1448,7 @@ function AddTxnSheet({ data, onClose, onSave }) {
         >Receita</button>
       </div>
 
-      <FieldLabel>Valor (R$)</FieldLabel>
+      <FieldLabel>{repeatMode === "installment" ? "Valor total da compra (R$)" : "Valor (R$)"}</FieldLabel>
       <TextInput type="number" step="0.01" min="0" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value)} />
 
       <FieldLabel>Categoria</FieldLabel>
@@ -1336,15 +1461,53 @@ function AddTxnSheet({ data, onClose, onSave }) {
         {data.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
       </SelectInput>
 
-      <FieldLabel>Data</FieldLabel>
+      <FieldLabel>Data {repeatMode !== "none" ? "(1º lançamento)" : ""}</FieldLabel>
       <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
 
       <FieldLabel>Descrição (opcional)</FieldLabel>
       <TextInput type="text" placeholder="Ex: Almoço, Uber…" value={description} onChange={(e) => setDescription(e.target.value)} />
 
+      <FieldLabel>Repetição</FieldLabel>
+      <div className="flex rounded-xl overflow-hidden mb-2" style={{ border: "1px solid var(--line)" }}>
+        {[
+          { id: "none", label: "Única" },
+          { id: "installment", label: "Parcelado" },
+          { id: "fixed", label: "Fixo mensal" },
+        ].map((opt) => (
+          <button
+            key={opt.id}
+            onClick={() => setRepeatMode(opt.id)}
+            className="fin-mono flex-1 py-2 text-[11.5px]"
+            style={{
+              background: repeatMode === opt.id ? "var(--ink)" : "var(--paper)",
+              color: repeatMode === opt.id ? "var(--card)" : "var(--ink)",
+            }}
+          >{opt.label}</button>
+        ))}
+      </div>
+
+      {repeatMode !== "none" && (
+        <>
+          <TextInput
+            type="number"
+            min="2"
+            max="60"
+            step="1"
+            placeholder="Quantidade de meses"
+            value={repeatCount}
+            onChange={(e) => setRepeatCount(e.target.value)}
+          />
+          <p className="text-[11px] mt-1.5" style={{ color: "var(--muted)" }}>
+            {repeatMode === "installment"
+              ? `O valor total será dividido em ${repeatCount || "N"} parcelas, uma por mês.`
+              : `O mesmo valor será lançado todo mês, por ${repeatCount || "N"} meses.`}
+          </p>
+        </>
+      )}
+
       <button
         disabled={!canSave}
-        onClick={() => onSave({ type, amount: parseFloat(amount), categoryId, accountId, date, description })}
+        onClick={handleSave}
         className="fin-btn-primary w-full rounded-2xl py-3 text-[13px] mt-5"
         style={{ opacity: canSave ? 1 : 0.4 }}
       >Salvar lançamento</button>

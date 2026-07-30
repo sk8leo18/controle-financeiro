@@ -15,6 +15,20 @@
     <meta name="apple-mobile-web-app-title" content="Financeiro" />
 
     <title>Controle Financeiro</title>
+
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("financas-theme");
+          var dark = saved === "dark" || (!saved && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var theme = dark ? "dark" : "light";
+          var paper = dark ? "#12181A" : "#E4E8E2";
+          document.documentElement.style.colorScheme = theme;
+          document.documentElement.setAttribute("data-theme", theme);
+          document.documentElement.style.background = paper;
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body style="margin:0">
     <div id="root"></div>
