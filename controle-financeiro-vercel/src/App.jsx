@@ -3,7 +3,8 @@ import {
   Plus, Wallet, TrendingUp, Home as HomeIcon, Receipt, PiggyBank, BarChart3,
   Trash2, X, Utensils, Car, Gamepad2, HeartPulse, GraduationCap, ShoppingBag,
   MoreHorizontal, CreditCard, Target, ArrowUpRight, ArrowDownRight, Landmark,
-  Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles, Search, Pencil
+  Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles, Search, Pencil,
+  Smartphone, CloudCheck
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -115,6 +116,16 @@ function addDays(dateStr, days) {
 
 // Histórico de novidades do app — atualize este array a cada leva de melhorias.
 const CHANGELOG = [
+  {
+    version: 9,
+    date: "29/07/2026",
+    title: "Menu inferior corrigido e reforço no modo claro/escuro",
+    items: [
+      "Corrigido o menu inferior do celular, que ficava espremido com 6 abas",
+      "Reforçada a trava de modo claro/escuro contra o \"forçar modo escuro\" de alguns celulares Android",
+      "Barra de conta (topo) redesenhada, tanto logado quanto sem login",
+    ],
+  },
   {
     version: 8,
     date: "29/07/2026",
@@ -391,14 +402,25 @@ export default function App() {
     try {
       localStorage.setItem("financas-theme", theme);
     } catch (e) {}
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", THEMES[theme]["--paper"]);
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeColorMeta) themeColorMeta.setAttribute("content", THEMES[theme]["--paper"]);
 
     // Trava o color-scheme no tema ativo (em vez de "light dark"), para que
     // selects, campos de data e a barra de rolagem nativos não fiquem com
     // aparência diferente do resto do app quando o celular está no tema oposto.
+    // Atualiza tanto a tag <meta> quanto o estilo computado, pois alguns
+    // navegadores/Android verificam a tag diretamente.
+    let colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
+    if (!colorSchemeMeta) {
+      colorSchemeMeta = document.createElement("meta");
+      colorSchemeMeta.setAttribute("name", "color-scheme");
+      document.head.appendChild(colorSchemeMeta);
+    }
+    colorSchemeMeta.setAttribute("content", theme);
+
     document.documentElement.style.colorScheme = theme;
     document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.style.background = THEMES[theme]["--paper"];
     document.body.style.background = THEMES[theme]["--paper"];
     document.body.style.colorScheme = theme;
   }, [theme]);
@@ -574,29 +596,39 @@ export default function App() {
 
         <div className="flex-1 min-w-0 md:ml-60">
           <div
-            className="md:hidden flex items-center justify-between px-5"
-            style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)", paddingBottom: 8 }}
+            className="md:hidden flex items-center justify-between gap-2 px-5"
+            style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)", paddingBottom: 10 }}
           >
             {hasFirebaseConfig ? (
               user ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  {user.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />}
-                  <span className="fin-mono text-[11px] truncate" style={{ color: "var(--muted)" }}>
+                <div className="flex items-center gap-1.5 min-w-0 rounded-full pl-1 pr-3 py-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--navy)" }}>
+                      <span className="fin-mono text-[10px] font-semibold" style={{ color: "#fff" }}>{(user.displayName || user.email || "U")[0].toUpperCase()}</span>
+                    </div>
+                  )}
+                  <span className="fin-mono text-[11px] truncate max-w-[90px]">
                     {user.displayName ? user.displayName.split(" ")[0] : user.email}
                   </span>
+                  <CloudCheck size={12} color="var(--income)" className="flex-shrink-0" />
                 </div>
               ) : (
-                <span className="fin-mono text-[11px]" style={{ color: "var(--muted)" }}>Dados salvos neste aparelho</span>
+                <div className="flex items-center gap-1.5 min-w-0 rounded-full pl-2.5 pr-3 py-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+                  <Smartphone size={12} style={{ color: "var(--muted)" }} className="flex-shrink-0" />
+                  <span className="fin-mono text-[10.5px] truncate" style={{ color: "var(--muted)" }}>Salvo neste aparelho</span>
+                </div>
               )
             ) : <span />}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {hasFirebaseConfig && (
                 <button
                   onClick={user ? handleSignOut : handleSignIn}
-                  className="fin-mono text-[11px] flex-shrink-0"
-                  style={{ color: "var(--navy)" }}
+                  className="fin-mono text-[10.5px] flex-shrink-0 rounded-full px-3 py-1.5"
+                  style={{ color: user ? "var(--muted)" : "#fff", background: user ? "transparent" : "var(--navy)", border: user ? "1px solid var(--line)" : "none" }}
                 >
-                  {user ? "Sair" : "Entrar com Google"}
+                  {user ? "Sair" : "Entrar"}
                 </button>
               )}
               <button
@@ -676,12 +708,12 @@ export default function App() {
 /* ---------------------------------------------------------------------- */
 
 const NAV_ITEMS = [
-  { id: "home", label: "Início", Icon: HomeIcon },
-  { id: "txns", label: "Extrato", Icon: Receipt },
-  { id: "accounts", label: "Contas", Icon: Landmark },
-  { id: "goals", label: "Metas", Icon: Target },
-  { id: "salary", label: "Calculadora", Icon: Calculator },
-  { id: "reports", label: "Relatórios", Icon: BarChart3 },
+  { id: "home", label: "Início", shortLabel: "Início", Icon: HomeIcon },
+  { id: "txns", label: "Extrato", shortLabel: "Extrato", Icon: Receipt },
+  { id: "accounts", label: "Contas", shortLabel: "Contas", Icon: Landmark },
+  { id: "goals", label: "Metas", shortLabel: "Metas", Icon: Target },
+  { id: "salary", label: "Calculadora", shortLabel: "Calc.", Icon: Calculator },
+  { id: "reports", label: "Relatórios", shortLabel: "Relat.", Icon: BarChart3 },
 ];
 
 function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleTheme, onOpenChangelog, hasNewChangelog }) {
@@ -773,20 +805,23 @@ function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleThe
 function TabBar({ tab, setTab }) {
   return (
     <div
-      className="md:hidden fixed bottom-0 left-0 right-0 flex items-stretch justify-between px-1 z-20"
-      style={{ height: 68, background: "var(--card)", borderTop: "1px solid var(--line)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      className="md:hidden fixed bottom-0 left-0 right-0 flex items-stretch z-20"
+      style={{ height: 64, background: "var(--card)", borderTop: "1px solid var(--line)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      {NAV_ITEMS.map(({ id, label, Icon }) => {
+      {NAV_ITEMS.map(({ id, shortLabel, Icon }) => {
         const active = tab === id;
         return (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className="fin-tab-btn flex-1 flex flex-col items-center justify-center gap-1"
+            className="fin-tab-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-0.5"
             style={{ color: active ? "var(--ink)" : "var(--muted)" }}
           >
-            <Icon size={19} strokeWidth={active ? 2.4 : 1.8} />
-            <span className="fin-mono" style={{ fontSize: 9.5, letterSpacing: ".03em" }}>{label}</span>
+            <Icon size={18} strokeWidth={active ? 2.4 : 1.8} />
+            <span
+              className="fin-mono w-full text-center"
+              style={{ fontSize: 8.5, letterSpacing: ".01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+            >{shortLabel}</span>
           </button>
         );
       })}

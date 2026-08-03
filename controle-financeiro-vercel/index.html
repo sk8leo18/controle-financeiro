@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0F1826" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="light" id="color-scheme-meta" />
 
     <!-- PWA: faz o app abrir em tela cheia, sem barra do navegador -->
     <link rel="manifest" href="/manifest.json" />
@@ -26,6 +26,8 @@
           document.documentElement.style.colorScheme = theme;
           document.documentElement.setAttribute("data-theme", theme);
           document.documentElement.style.background = paper;
+          var schemeMeta = document.getElementById("color-scheme-meta");
+          if (schemeMeta) schemeMeta.setAttribute("content", theme);
         } catch (e) {}
       })();
     </script>
