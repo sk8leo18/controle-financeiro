@@ -119,7 +119,7 @@ function addDays(dateStr, days) {
 const CHANGELOG = [
   {
     version: 10,
-    date: "29/07/2026",
+    date: "04/08/2026",
     title: "Orçamento por categoria, trava de PIN e exportação",
     items: [
       "Defina um limite mensal por categoria e acompanhe o progresso no Extrato",
@@ -664,7 +664,10 @@ export default function App() {
 
   if (locked) {
     return (
-      <div className="fin-app w-full min-h-dvh flex items-center justify-center" style={{ ...cssVars, background: "var(--paper)", colorScheme: theme }}>
+      <div
+        className="fin-app w-full min-h-dvh flex items-center justify-center"
+        style={{ ...cssVars, background: "var(--paper)", colorScheme: theme, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
         <GlobalStyle />
         <PinLockOverlay verifyPin={verifyPin} onUnlock={() => setLocked(false)} />
       </div>
@@ -828,14 +831,14 @@ function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleThe
       className="hidden md:flex md:flex-col md:w-60 md:h-dvh md:sticky md:top-0 md:flex-shrink-0 px-4 py-6"
       style={{ borderRight: "1px solid var(--line)", background: "var(--card)" }}
     >
-      <div className="flex items-center justify-between px-2 mb-8">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--ink)" }}>
+      <div className="px-2 mb-7">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--ink)" }}>
             <Wallet size={17} color="var(--card)" />
           </div>
           <span className="fin-mono font-semibold text-[15px]">Financeiro</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={onOpenChangelog}
             aria-label="Novidades"
@@ -1911,14 +1914,17 @@ function PinLockOverlay({ verifyPin, onUnlock }) {
   };
 
   return (
-    <div className="flex flex-col items-center px-6 text-center">
-      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-        <Lock size={20} color="var(--ink)" />
+    <div
+      className="w-full max-w-[300px] mx-4 flex flex-col items-center px-7 py-10 text-center rounded-[28px]"
+      style={{ background: "var(--card)", border: "1px solid var(--line)", boxShadow: "0 20px 50px rgba(0,0,0,0.12)" }}
+    >
+      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--ink)" }}>
+        <Lock size={22} color="var(--card)" />
       </div>
-      <div className="fin-mono text-[13px] uppercase tracking-widest mb-1" style={{ color: "var(--muted)" }}>Financeiro</div>
-      <div className="text-[14px] mb-6">Digite seu PIN para continuar</div>
+      <div className="fin-mono text-[11.5px] uppercase tracking-[0.2em] mb-1.5" style={{ color: "var(--muted)" }}>Financeiro</div>
+      <div className="text-[15px] mb-7" style={{ fontWeight: 500 }}>Digite seu PIN para continuar</div>
       <PinPad onComplete={handleComplete} error={error} resetKey={attempt} />
-      {error && <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)" }}>PIN incorreto, tente de novo.</p>}
+      <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)", visibility: error ? "visible" : "hidden" }}>PIN incorreto, tente de novo.</p>
     </div>
   );
 }
