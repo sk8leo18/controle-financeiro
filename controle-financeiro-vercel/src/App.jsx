@@ -5,7 +5,7 @@ import {
   Trash2, X, Utensils, Car, Gamepad2, HeartPulse, GraduationCap, ShoppingBag,
   MoreHorizontal, CreditCard, Target, ArrowUpRight, ArrowDownRight, Landmark,
   Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles, Search, Pencil,
-  Smartphone, CloudCheck, Lock, Delete, Download, Printer, ShieldCheck
+  Smartphone, Cloud, Lock, Delete, Download, Printer, ShieldCheck
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -698,7 +698,7 @@ export default function App() {
                   <span className="fin-mono text-[11px] truncate max-w-[90px]">
                     {user.displayName ? user.displayName.split(" ")[0] : user.email}
                   </span>
-                  <CloudCheck size={12} color="var(--income)" className="flex-shrink-0" />
+                  <Cloud size={12} color="var(--income)" className="flex-shrink-0" />
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 min-w-0 rounded-full pl-2.5 pr-3 py-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
