@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus, Wallet, TrendingUp, Home as HomeIcon, Receipt, PiggyBank, BarChart3,
   Trash2, X, Utensils, Car, Gamepad2, HeartPulse, GraduationCap, ShoppingBag,
   MoreHorizontal, CreditCard, Target, ArrowUpRight, ArrowDownRight, Landmark,
   Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles, Search, Pencil,
-  Smartphone, CloudCheck
+  Smartphone, CloudCheck, Lock, Delete, Download, Printer, ShieldCheck
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -116,6 +117,16 @@ function addDays(dateStr, days) {
 
 // Histórico de novidades do app — atualize este array a cada leva de melhorias.
 const CHANGELOG = [
+  {
+    version: 10,
+    date: "29/07/2026",
+    title: "Orçamento por categoria, trava de PIN e exportação",
+    items: [
+      "Defina um limite mensal por categoria e acompanhe o progresso no Extrato",
+      "Trava o app com um PIN de 4 dígitos, com bloqueio automático após 1 minuto em segundo plano",
+      "Exportar todos os lançamentos em CSV (Excel) ou em PDF (via impressão do navegador)",
+    ],
+  },
   {
     version: 9,
     date: "29/07/2026",
@@ -290,6 +301,12 @@ const GlobalStyle = () => (
     input:focus, select:focus, button:focus-visible {
       outline: 2px solid var(--navy); outline-offset: 1px;
     }
+
+    .fin-print-area { display: none; }
+    @media print {
+      #root { display: none !important; }
+      .fin-print-area { display: block !important; }
+    }
   `}</style>
 );
 
@@ -427,6 +444,62 @@ export default function App() {
 
   const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
 
+  const [pinEnabled, setPinEnabled] = useState(() => {
+    try { return localStorage.getItem("financas-pin-enabled") === "1"; } catch (e) { return false; }
+  });
+  const [locked, setLocked] = useState(() => {
+    try { return localStorage.getItem("financas-pin-enabled") === "1"; } catch (e) { return false; }
+  });
+  const [showSecurity, setShowSecurity] = useState(false);
+
+  const hashPin = async (pin) => {
+    const enc = new TextEncoder().encode(pin);
+    const buf = await crypto.subtle.digest("SHA-256", enc);
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  };
+
+  const verifyPin = useCallback(async (pin) => {
+    try {
+      const stored = localStorage.getItem("financas-pin-hash");
+      if (!stored) return false;
+      return (await hashPin(pin)) === stored;
+    } catch (e) {
+      return false;
+    }
+  }, []);
+
+  const setupPin = useCallback(async (pin) => {
+    const hash = await hashPin(pin);
+    try {
+      localStorage.setItem("financas-pin-hash", hash);
+      localStorage.setItem("financas-pin-enabled", "1");
+    } catch (e) {}
+    setPinEnabled(true);
+  }, []);
+
+  const disablePin = useCallback(() => {
+    try {
+      localStorage.removeItem("financas-pin-hash");
+      localStorage.removeItem("financas-pin-enabled");
+    } catch (e) {}
+    setPinEnabled(false);
+  }, []);
+
+  // Trava de novo o app se ele ficar em segundo plano por mais de 1 minuto
+  useEffect(() => {
+    if (!pinEnabled) return;
+    let hiddenAt = null;
+    const onVis = () => {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+      } else if (hiddenAt && Date.now() - hiddenAt > 60000) {
+        setLocked(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [pinEnabled]);
+
   const [showChangelog, setShowChangelog] = useState(false);
   const [seenVersion, setSeenVersion] = useState(() => {
     try {
@@ -484,10 +557,10 @@ export default function App() {
         if (res && res.value) {
           setData(JSON.parse(res.value));
         } else {
-          setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" } });
+          setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" }, budgets: {} });
         }
       } catch (e) {
-        setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" } });
+        setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" }, budgets: {} });
       } finally {
         setLoaded(true);
       }
@@ -551,6 +624,10 @@ export default function App() {
     setData((d) => ({ ...d, settings: { ...(d.settings || {}), ...patch } }));
   }, []);
 
+  const updateBudget = useCallback((categoryId, amount) => {
+    setData((d) => ({ ...d, budgets: { ...(d.budgets || {}), [categoryId]: amount } }));
+  }, []);
+
   const balances = useMemo(() => {
     if (!data) return {};
     const map = {};
@@ -585,6 +662,15 @@ export default function App() {
 
   const cssVars = THEMES[theme];
 
+  if (locked) {
+    return (
+      <div className="fin-app w-full min-h-dvh flex items-center justify-center" style={{ ...cssVars, background: "var(--paper)", colorScheme: theme }}>
+        <GlobalStyle />
+        <PinLockOverlay verifyPin={verifyPin} onUnlock={() => setLocked(false)} />
+      </div>
+    );
+  }
+
   return (
     <div
       className="fin-app w-full min-h-dvh"
@@ -592,7 +678,7 @@ export default function App() {
     >
       <GlobalStyle />
       <div className="md:flex md:items-start">
-        <SidebarNav tab={tab} setTab={setTab} user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} theme={theme} onToggleTheme={toggleTheme} onOpenChangelog={openChangelog} hasNewChangelog={hasNewChangelog} />
+        <SidebarNav tab={tab} setTab={setTab} user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} theme={theme} onToggleTheme={toggleTheme} onOpenChangelog={openChangelog} hasNewChangelog={hasNewChangelog} onOpenSecurity={() => setShowSecurity(true)} pinEnabled={pinEnabled} />
 
         <div className="flex-1 min-w-0 md:ml-60">
           <div
@@ -650,6 +736,14 @@ export default function App() {
               >
                 {theme === "light" ? <Moon size={13} /> : <Sun size={13} />}
               </button>
+              <button
+                onClick={() => setShowSecurity(true)}
+                aria-label="Segurança"
+                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+              >
+                <Lock size={13} color={pinEnabled ? "var(--income)" : "currentColor"} />
+              </button>
             </div>
           </div>
 
@@ -661,7 +755,7 @@ export default function App() {
               <HomeView data={data} balances={balances} totalBalance={totalBalance} totals={totals} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} onEdit={(t) => { setEditingTxn(t); setSheet("txn"); }} />
             )}
             {tab === "txns" && (
-              <FaturaView data={data} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} onEdit={(t) => { setEditingTxn(t); setSheet("txn"); }} />
+              <FaturaView data={data} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} onEdit={(t) => { setEditingTxn(t); setSheet("txn"); }} onOpenBudgets={() => setSheet("budgets")} />
             )}
             {tab === "accounts" && (
               <AccountsView data={data} balances={balances} onAdd={() => setSheet("account")} onDelete={deleteAccount} />
@@ -692,7 +786,19 @@ export default function App() {
       {sheet === "goal" && (
         <AddGoalSheet onClose={() => setSheet(null)} onSave={(g) => { addGoal(g); setSheet(null); }} />
       )}
+      {sheet === "budgets" && (
+        <BudgetSheet data={data} onClose={() => setSheet(null)} onUpdateBudget={updateBudget} />
+      )}
       {showChangelog && <ChangelogSheet onClose={() => setShowChangelog(false)} />}
+      {showSecurity && (
+        <SecuritySheet
+          onClose={() => setShowSecurity(false)}
+          pinEnabled={pinEnabled}
+          verifyPin={verifyPin}
+          setupPin={setupPin}
+          disablePin={disablePin}
+        />
+      )}
 
       {saveError && (
         <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 fin-mono text-[11px] px-3 py-1.5 rounded-full z-40" style={{ background: "var(--expense)", color: "#fff" }}>
@@ -716,7 +822,7 @@ const NAV_ITEMS = [
   { id: "reports", label: "Relatórios", shortLabel: "Relat.", Icon: BarChart3 },
 ];
 
-function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleTheme, onOpenChangelog, hasNewChangelog }) {
+function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleTheme, onOpenChangelog, hasNewChangelog, onOpenSecurity, pinEnabled }) {
   return (
     <aside
       className="hidden md:flex md:flex-col md:w-60 md:h-dvh md:sticky md:top-0 md:flex-shrink-0 px-4 py-6"
@@ -748,6 +854,14 @@ function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleThe
             style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
           >
             {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
+          <button
+            onClick={onOpenSecurity}
+            aria-label="Segurança"
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
+          >
+            <Lock size={14} color={pinEnabled ? "var(--income)" : "currentColor"} />
           </button>
         </div>
       </div>
@@ -1010,7 +1124,7 @@ function addMonthsClamped(dateStr, months) {
   return target.toISOString().slice(0, 10);
 }
 
-function FaturaView({ data, onDelete, onAdd, onEdit }) {
+function FaturaView({ data, onDelete, onAdd, onEdit, onOpenBudgets }) {
   const [month, setMonth] = useState(() => todayISO().slice(0, 7));
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -1056,6 +1170,27 @@ function FaturaView({ data, onDelete, onAdd, onEdit }) {
   }, [data.transactions, month]);
 
   const expenseChangePct = prevMonthExpense > 0 ? ((monthTotals.expense - prevMonthExpense) / prevMonthExpense) * 100 : null;
+
+  const budgetProgress = useMemo(() => {
+    const budgets = data.budgets || {};
+    return Object.entries(budgets)
+      .filter(([, limit]) => parseFloat(limit) > 0)
+      .map(([categoryId, limit]) => {
+        const cat = data.categories.find((c) => c.id === categoryId);
+        const spent = data.transactions
+          .filter((t) => t.categoryId === categoryId && t.type === "expense" && monthKey(t.date) === month)
+          .reduce((s, t) => s + t.amount, 0);
+        return {
+          categoryId,
+          name: cat?.name || "Categoria",
+          color: cat?.color || "#6E756A",
+          limit: parseFloat(limit),
+          spent,
+          pct: (spent / parseFloat(limit)) * 100,
+        };
+      })
+      .sort((a, b) => b.pct - a.pct);
+  }, [data.budgets, data.categories, data.transactions, month]);
 
   const grouped = useMemo(() => {
     const map = {};
@@ -1143,6 +1278,32 @@ function FaturaView({ data, onDelete, onAdd, onEdit }) {
               </div>
             )}
           </div>
+
+          {budgetProgress.length > 0 && (
+            <div className="rounded-2xl px-4 py-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+              <div className="fin-mono text-[10.5px] uppercase tracking-wider mb-2.5" style={{ color: "var(--muted)" }}>Orçamentos do mês</div>
+              {budgetProgress.map((b) => (
+                <div key={b.categoryId} className="mb-2.5 last:mb-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[12px] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: b.color }} />
+                      {b.name}
+                    </span>
+                    <span className="fin-mono text-[11px]" style={{ color: b.pct > 100 ? "var(--expense)" : "var(--muted)" }}>
+                      {fmt(b.spent)} / {fmt(b.limit)}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--paper)" }}>
+                    <div className="h-full rounded-full" style={{ width: Math.min(100, b.pct) + "%", background: b.pct > 100 ? "var(--expense)" : b.color }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button onClick={onOpenBudgets} className="fin-mono text-[11px] flex items-center gap-1.5 mb-4" style={{ color: "var(--navy)" }}>
+            <PiggyBank size={13} /> Definir orçamentos por categoria
+          </button>
 
           <div className="flex gap-1.5 overflow-x-auto pb-1 md:flex-wrap" style={{ scrollbarWidth: "none" }}>
             <FilterChip active={filter === "all"} onClick={() => setFilter("all")} label="Todas" />
@@ -1323,6 +1484,96 @@ function GoalCard({ g, onDelete, onAddFunds }) {
 /* Relatórios                                                              */
 /* ---------------------------------------------------------------------- */
 
+function downloadCSV(data) {
+  const header = ["Data", "Tipo", "Categoria", "Conta", "Descrição", "Valor"];
+  const rows = [...data.transactions]
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((t) => {
+      const cat = data.categories.find((c) => c.id === t.categoryId);
+      const acc = data.accounts.find((a) => a.id === t.accountId);
+      return [
+        t.date,
+        t.type === "income" ? "Receita" : "Despesa",
+        cat?.name || "",
+        acc?.name || "",
+        t.description || "",
+        t.amount.toFixed(2).replace(".", ","),
+      ];
+    });
+  const escape = (v) => {
+    const s = String(v ?? "");
+    return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const csv = [header, ...rows].map((r) => r.map(escape).join(";")).join("\r\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `controle-financeiro-${todayISO()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function PrintStatement({ data }) {
+  const grouped = useMemo(() => {
+    const map = {};
+    [...data.transactions].sort((a, b) => (a.date < b.date ? -1 : 1)).forEach((t) => {
+      const mk = monthKey(t.date);
+      if (!map[mk]) map[mk] = [];
+      map[mk].push(t);
+    });
+    return Object.entries(map).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  }, [data.transactions]);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fin-print-area" style={{ padding: 24, fontFamily: "Arial, sans-serif", color: "#111" }}>
+      <h1 style={{ fontSize: 18, marginBottom: 2 }}>Controle Financeiro — Extrato completo</h1>
+      <p style={{ fontSize: 11, color: "#555", marginBottom: 18 }}>Gerado em {new Date().toLocaleDateString("pt-BR")}</p>
+      {grouped.map(([mk, txns]) => {
+        const [y, m] = mk.split("-").map(Number);
+        return (
+          <div key={mk} style={{ marginBottom: 22, breakInside: "avoid" }}>
+            <h2 style={{ fontSize: 13, marginBottom: 6, borderBottom: "1px solid #ccc", paddingBottom: 4 }}>{MONTH_NAMES[m - 1]} {y}</h2>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "1px solid #999" }}>Data</th>
+                  <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "1px solid #999" }}>Descrição</th>
+                  <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "1px solid #999" }}>Categoria</th>
+                  <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "1px solid #999" }}>Conta</th>
+                  <th style={{ textAlign: "right", padding: "3px 6px", borderBottom: "1px solid #999" }}>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {txns.map((t) => {
+                  const cat = data.categories.find((c) => c.id === t.categoryId);
+                  const acc = data.accounts.find((a) => a.id === t.accountId);
+                  return (
+                    <tr key={t.id}>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee" }}>{fmtDate(t.date)}</td>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee" }}>{t.description || cat?.name || ""}</td>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee" }}>{cat?.name || ""}</td>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee" }}>{acc?.name || ""}</td>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee", textAlign: "right", color: t.type === "income" ? "#0a7a4a" : "#a02020" }}>
+                        {t.type === "income" ? "+" : "-"}{fmt(t.amount)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+    </div>,
+    document.body
+  );
+}
+
 function ReportsView({ data, totals }) {
   const now = new Date();
   const curMonth = now.toISOString().slice(0, 7);
@@ -1357,7 +1608,22 @@ function ReportsView({ data, totals }) {
 
   return (
     <div className="px-5 md:px-8 pt-3 md:pt-8 pb-6">
-      <h2 className="fin-mono text-[13px] uppercase tracking-widest mb-3" style={{ color: "var(--muted)" }}>Relatórios</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Relatórios</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV(data)}
+            className="fin-mono text-[11px] flex items-center gap-1.5 rounded-full px-3 py-1.5"
+            style={{ border: "1px solid var(--line)", color: "var(--ink)" }}
+          ><Download size={12} /> CSV</button>
+          <button
+            onClick={() => window.print()}
+            className="fin-mono text-[11px] flex items-center gap-1.5 rounded-full px-3 py-1.5"
+            style={{ border: "1px solid var(--line)", color: "var(--ink)" }}
+          ><Printer size={12} /> PDF</button>
+        </div>
+      </div>
+      <PrintStatement data={data} />
 
       <div className="flex gap-3 mb-5 md:max-w-[500px]">
         <div className="flex-1 rounded-2xl px-3.5 py-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
@@ -1517,6 +1783,253 @@ function SalaryView({ data, onUpdateSettings }) {
 /* ---------------------------------------------------------------------- */
 /* Novidades (changelog)                                                  */
 /* ---------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------- */
+/* Orçamentos por categoria                                                */
+/* ---------------------------------------------------------------------- */
+
+function BudgetSheet({ data, onClose, onUpdateBudget }) {
+  const expenseCats = data.categories.filter((c) => c.type === "expense");
+  const [values, setValues] = useState(() => {
+    const initial = {};
+    expenseCats.forEach((c) => { initial[c.id] = data.budgets?.[c.id] ? String(data.budgets[c.id]) : ""; });
+    return initial;
+  });
+
+  const handleBlur = (categoryId) => {
+    const n = parseFloat(values[categoryId]);
+    onUpdateBudget(categoryId, isNaN(n) || n <= 0 ? 0 : n);
+  };
+
+  return (
+    <Sheet title="Orçamentos por categoria" onClose={onClose}>
+      <p className="text-[12px] mb-4" style={{ color: "var(--muted)" }}>
+        Defina um limite mensal para as categorias que quiser acompanhar. Deixe em branco para não definir limite.
+      </p>
+      {expenseCats.map((c) => (
+        <div key={c.id} className="flex items-center gap-3 mb-3">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: c.color + "20" }}>
+            <CategoryIcon cat={c} size={15} />
+          </div>
+          <span className="text-[13px] flex-1">{c.name}</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Sem limite"
+            value={values[c.id]}
+            onChange={(e) => setValues((v) => ({ ...v, [c.id]: e.target.value }))}
+            onBlur={() => handleBlur(c.id)}
+            className="w-28 rounded-xl px-3 py-2 text-[13px] text-right"
+            style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+          />
+        </div>
+      ))}
+      <button
+        onClick={() => { expenseCats.forEach((c) => handleBlur(c.id)); onClose(); }}
+        className="fin-btn-primary w-full rounded-2xl py-3 text-[13px] mt-3"
+      >Salvar orçamentos</button>
+    </Sheet>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------- */
+/* Trava por PIN                                                          */
+/* ---------------------------------------------------------------------- */
+
+function PinPad({ onComplete, error, resetKey }) {
+  const [entered, setEntered] = useState("");
+
+  useEffect(() => { setEntered(""); }, [resetKey]);
+
+  const press = (d) => {
+    if (entered.length >= 4) return;
+    const next = entered + d;
+    setEntered(next);
+    if (next.length === 4) {
+      onComplete(next);
+      setTimeout(() => setEntered(""), 350);
+    }
+  };
+
+  const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  return (
+    <div>
+      <div className="flex justify-center gap-3 mb-7">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="w-3.5 h-3.5 rounded-full"
+            style={{
+              background: i < entered.length ? (error ? "var(--expense)" : "var(--ink)") : "transparent",
+              border: `2px solid ${error ? "var(--expense)" : "var(--line)"}`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-3 max-w-[260px] mx-auto">
+        {numbers.map((n) => (
+          <button
+            key={n}
+            onClick={() => press(String(n))}
+            className="fin-mono text-[19px] rounded-full aspect-square flex items-center justify-center"
+            style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+          >{n}</button>
+        ))}
+        <div />
+        <button
+          onClick={() => press("0")}
+          className="fin-mono text-[19px] rounded-full aspect-square flex items-center justify-center"
+          style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+        >0</button>
+        <button
+          onClick={() => setEntered((e) => e.slice(0, -1))}
+          className="rounded-full aspect-square flex items-center justify-center"
+          style={{ color: "var(--muted)" }}
+        ><Delete size={18} /></button>
+      </div>
+    </div>
+  );
+}
+
+function PinLockOverlay({ verifyPin, onUnlock }) {
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  const handleComplete = async (pin) => {
+    const ok = await verifyPin(pin);
+    if (ok) {
+      onUnlock();
+    } else {
+      setError(true);
+      setAttempt((a) => a + 1);
+      setTimeout(() => setError(false), 500);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center px-6 text-center">
+      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <Lock size={20} color="var(--ink)" />
+      </div>
+      <div className="fin-mono text-[13px] uppercase tracking-widest mb-1" style={{ color: "var(--muted)" }}>Financeiro</div>
+      <div className="text-[14px] mb-6">Digite seu PIN para continuar</div>
+      <PinPad onComplete={handleComplete} error={error} resetKey={attempt} />
+      {error && <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)" }}>PIN incorreto, tente de novo.</p>}
+    </div>
+  );
+}
+
+function SecuritySheet({ onClose, pinEnabled, verifyPin, setupPin, disablePin }) {
+  const [step, setStep] = useState("status"); // status | enter-current | enter-new | confirm-new
+  const [firstPin, setFirstPin] = useState("");
+  const [error, setError] = useState("");
+  const [resetKey, setResetKey] = useState(0);
+  // Ação pendente após confirmar o PIN atual: 'disable' ou 'change'
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const bump = () => setResetKey((k) => k + 1);
+
+  const onCurrentPinComplete = async (pin) => {
+    const ok = await verifyPin(pin);
+    if (!ok) {
+      setError("PIN incorreto.");
+      bump();
+      return;
+    }
+    setError("");
+    if (pendingAction === "disable") {
+      disablePin();
+      setStep("status");
+    } else {
+      setStep("enter-new");
+    }
+  };
+
+  const onNewPinComplete = (pin) => {
+    setFirstPin(pin);
+    setError("");
+    setStep("confirm-new");
+  };
+
+  const onConfirmPinComplete = async (pin) => {
+    if (pin !== firstPin) {
+      setError("Os PINs não coincidem. Tente de novo.");
+      setStep("enter-new");
+      bump();
+      return;
+    }
+    await setupPin(pin);
+    setError("");
+    setStep("status");
+  };
+
+  return (
+    <Sheet title="Segurança" onClose={onClose}>
+      {step === "status" && (
+        <>
+          <div className="flex items-center gap-3 mb-5 rounded-2xl px-4 py-3.5" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: pinEnabled ? "var(--income)" + "20" : "var(--paper)" }}>
+              {pinEnabled ? <ShieldCheck size={17} color="var(--income)" /> : <Lock size={17} color="var(--muted)" />}
+            </div>
+            <div>
+              <div className="text-[13.5px]" style={{ fontWeight: 600 }}>{pinEnabled ? "Trava por PIN ativada" : "Trava por PIN desativada"}</div>
+              <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>
+                {pinEnabled ? "O app pede o PIN ao abrir e após 1 minuto em segundo plano." : "Qualquer pessoa com acesso ao aparelho pode abrir o app."}
+              </div>
+            </div>
+          </div>
+
+          {!pinEnabled ? (
+            <button onClick={() => { setPendingAction(null); setStep("enter-new"); }} className="fin-btn-primary w-full rounded-2xl py-3 text-[13px]">
+              Ativar trava por PIN
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setPendingAction("change"); setError(""); setStep("enter-current"); }}
+                className="rounded-2xl py-3 text-[13px] fin-mono"
+                style={{ border: "1px solid var(--line)" }}
+              >Alterar PIN</button>
+              <button
+                onClick={() => { setPendingAction("disable"); setError(""); setStep("enter-current"); }}
+                className="rounded-2xl py-3 text-[13px] fin-mono"
+                style={{ border: "1px solid var(--line)", color: "var(--expense)" }}
+              >Desativar trava</button>
+            </div>
+          )}
+        </>
+      )}
+
+      {step === "enter-current" && (
+        <div className="text-center">
+          <p className="text-[13px] mb-5" style={{ color: "var(--muted)" }}>Digite seu PIN atual para continuar</p>
+          <PinPad onComplete={onCurrentPinComplete} error={Boolean(error)} resetKey={resetKey} />
+          {error && <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)" }}>{error}</p>}
+        </div>
+      )}
+
+      {step === "enter-new" && (
+        <div className="text-center">
+          <p className="text-[13px] mb-5" style={{ color: "var(--muted)" }}>Crie um PIN de 4 dígitos</p>
+          <PinPad onComplete={onNewPinComplete} error={Boolean(error)} resetKey={resetKey} />
+          {error && <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)" }}>{error}</p>}
+        </div>
+      )}
+
+      {step === "confirm-new" && (
+        <div className="text-center">
+          <p className="text-[13px] mb-5" style={{ color: "var(--muted)" }}>Digite o mesmo PIN de novo para confirmar</p>
+          <PinPad onComplete={onConfirmPinComplete} error={Boolean(error)} resetKey={resetKey} />
+          {error && <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)" }}>{error}</p>}
+        </div>
+      )}
+    </Sheet>
+  );
+}
 
 function ChangelogSheet({ onClose }) {
   return (
