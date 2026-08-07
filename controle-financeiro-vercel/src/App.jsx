@@ -5,7 +5,8 @@ import {
   Trash2, X, Utensils, Car, Gamepad2, HeartPulse, GraduationCap, ShoppingBag,
   MoreHorizontal, CreditCard, Target, ArrowUpRight, ArrowDownRight, Landmark,
   Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles, Search, Pencil,
-  Smartphone, Cloud, Lock, Delete, Download, Printer, ShieldCheck
+  Smartphone, Cloud, Lock, Delete, Download, Printer, ShieldCheck, Accessibility,
+  Type, AlertTriangle
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -67,6 +68,33 @@ const THEMES = {
     "--card": "#1D2523",
     "--muted": "#8B958E",
     "--line": "#333F3A",
+  },
+};
+
+// Variante de alto contraste — texto e fundo praticamente pretos/brancos,
+// bordas mais fortes, cores mais saturadas. Ativada junto com o tema normal.
+const THEMES_HC = {
+  light: {
+    "--paper": "#FFFFFF",
+    "--ink": "#000000",
+    "--navy": "#00397A",
+    "--expense": "#B00020",
+    "--income": "#00591C",
+    "--gold": "#7A5900",
+    "--card": "#FFFFFF",
+    "--muted": "#333333",
+    "--line": "#000000",
+  },
+  dark: {
+    "--paper": "#000000",
+    "--ink": "#FFFFFF",
+    "--navy": "#8AB4FF",
+    "--expense": "#FF7A7A",
+    "--income": "#6FE28C",
+    "--gold": "#FFD166",
+    "--card": "#000000",
+    "--muted": "#DADADA",
+    "--line": "#FFFFFF",
   },
 };
 
@@ -444,6 +472,24 @@ export default function App() {
 
   const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
 
+  const [fontScale, setFontScale] = useState(() => {
+    try { return localStorage.getItem("financas-font-scale") || "medium"; } catch (e) { return "medium"; }
+  });
+  const [highContrast, setHighContrast] = useState(() => {
+    try { return localStorage.getItem("financas-high-contrast") === "1"; } catch (e) { return false; }
+  });
+  const [showAccessibility, setShowAccessibility] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem("financas-font-scale", fontScale); } catch (e) {}
+  }, [fontScale]);
+
+  useEffect(() => {
+    try { localStorage.setItem("financas-high-contrast", highContrast ? "1" : "0"); } catch (e) {}
+  }, [highContrast]);
+
+  const FONT_SCALES = { small: "92%", medium: "100%", large: "115%" };
+
   const [pinEnabled, setPinEnabled] = useState(() => {
     try { return localStorage.getItem("financas-pin-enabled") === "1"; } catch (e) { return false; }
   });
@@ -451,6 +497,7 @@ export default function App() {
     try { return localStorage.getItem("financas-pin-enabled") === "1"; } catch (e) { return false; }
   });
   const [showSecurity, setShowSecurity] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const hashPin = async (pin) => {
     const enc = new TextEncoder().encode(pin);
@@ -660,13 +707,13 @@ export default function App() {
     );
   }
 
-  const cssVars = THEMES[theme];
+  const cssVars = highContrast ? THEMES_HC[theme] : THEMES[theme];
 
   if (locked) {
     return (
       <div
         className="fin-app w-full min-h-dvh flex items-center justify-center"
-        style={{ ...cssVars, background: "var(--paper)", colorScheme: theme, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ ...cssVars, background: "var(--paper)", colorScheme: theme, zoom: FONT_SCALES[fontScale], paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <GlobalStyle />
         <PinLockOverlay verifyPin={verifyPin} onUnlock={() => setLocked(false)} />
@@ -677,7 +724,7 @@ export default function App() {
   return (
     <div
       className="fin-app w-full min-h-dvh"
-      style={{ ...cssVars, background: "var(--paper)", colorScheme: theme }}
+      style={{ ...cssVars, background: "var(--paper)", colorScheme: theme, zoom: FONT_SCALES[fontScale] }}
     >
       <GlobalStyle />
       <div className="md:flex md:items-start">
@@ -714,7 +761,7 @@ export default function App() {
               {hasFirebaseConfig && (
                 <button
                   onClick={user ? handleSignOut : handleSignIn}
-                  className="fin-mono text-[10.5px] flex-shrink-0 rounded-full px-3 py-1.5"
+                  className="fin-mono text-[10.5px] flex-shrink-0 rounded-full px-3 py-2"
                   style={{ color: user ? "var(--muted)" : "#fff", background: user ? "transparent" : "var(--navy)", border: user ? "1px solid var(--line)" : "none" }}
                 >
                   {user ? "Sair" : "Entrar"}
@@ -723,29 +770,21 @@ export default function App() {
               <button
                 onClick={openChangelog}
                 aria-label="Novidades"
-                className="relative w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                className="relative w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ background: "var(--card)", border: "1px solid var(--line)" }}
               >
-                <Bell size={13} />
+                <Bell size={15} />
                 {hasNewChangelog && (
-                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full" style={{ background: "var(--expense)" }} />
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: "var(--expense)" }} />
                 )}
               </button>
               <button
-                onClick={toggleTheme}
-                aria-label="Alternar tema"
-                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                onClick={() => setShowMoreMenu(true)}
+                aria-label="Mais opções"
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ background: "var(--card)", border: "1px solid var(--line)" }}
               >
-                {theme === "light" ? <Moon size={13} /> : <Sun size={13} />}
-              </button>
-              <button
-                onClick={() => setShowSecurity(true)}
-                aria-label="Segurança"
-                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "var(--card)", border: "1px solid var(--line)" }}
-              >
-                <Lock size={13} color={pinEnabled ? "var(--income)" : "currentColor"} />
+                <MoreHorizontal size={16} />
               </button>
             </div>
           </div>
@@ -800,6 +839,15 @@ export default function App() {
           verifyPin={verifyPin}
           setupPin={setupPin}
           disablePin={disablePin}
+        />
+      )}
+      {showMoreMenu && (
+        <MoreMenuSheet
+          onClose={() => setShowMoreMenu(false)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenSecurity={() => setShowSecurity(true)}
+          pinEnabled={pinEnabled}
         />
       )}
 
@@ -1873,20 +1921,20 @@ function PinPad({ onComplete, error, resetKey }) {
           />
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-3 max-w-[260px] mx-auto">
+      <div className="grid grid-cols-3 gap-4 max-w-[290px] mx-auto">
         {numbers.map((n) => (
           <button
             key={n}
             onClick={() => press(String(n))}
-            className="fin-mono text-[19px] rounded-full aspect-square flex items-center justify-center"
-            style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+            className="fin-mono text-[26px] rounded-full aspect-square flex items-center justify-center"
+            style={{ background: "var(--card)", border: "1px solid var(--line)", fontWeight: 500 }}
           >{n}</button>
         ))}
         <div />
         <button
           onClick={() => press("0")}
-          className="fin-mono text-[19px] rounded-full aspect-square flex items-center justify-center"
-          style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+          className="fin-mono text-[26px] rounded-full aspect-square flex items-center justify-center"
+          style={{ background: "var(--card)", border: "1px solid var(--line)", fontWeight: 500 }}
         >0</button>
         <button
           onClick={() => setEntered((e) => e.slice(0, -1))}
@@ -1915,7 +1963,7 @@ function PinLockOverlay({ verifyPin, onUnlock }) {
 
   return (
     <div
-      className="w-full max-w-[300px] mx-4 flex flex-col items-center px-7 py-10 text-center rounded-[28px]"
+      className="w-full max-w-[340px] mx-4 flex flex-col items-center px-6 py-10 text-center rounded-[28px]"
       style={{ background: "var(--card)", border: "1px solid var(--line)", boxShadow: "0 20px 50px rgba(0,0,0,0.12)" }}
     >
       <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--ink)" }}>
@@ -1926,6 +1974,40 @@ function PinLockOverlay({ verifyPin, onUnlock }) {
       <PinPad onComplete={handleComplete} error={error} resetKey={attempt} />
       <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)", visibility: error ? "visible" : "hidden" }}>PIN incorreto, tente de novo.</p>
     </div>
+  );
+}
+
+function MoreMenuSheet({ onClose, theme, onToggleTheme, onOpenSecurity, pinEnabled }) {
+  return (
+    <Sheet title="Mais opções" onClose={onClose}>
+      <button
+        onClick={onToggleTheme}
+        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-2.5"
+        style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+      >
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--paper)" }}>
+          {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+        </div>
+        <div className="text-left flex-1">
+          <div className="text-[13.5px]" style={{ fontWeight: 600 }}>Aparência</div>
+          <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>Tema {theme === "light" ? "claro" : "escuro"} — toque para trocar</div>
+        </div>
+      </button>
+
+      <button
+        onClick={() => { onClose(); onOpenSecurity(); }}
+        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5"
+        style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+      >
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--paper)" }}>
+          <Lock size={16} color={pinEnabled ? "var(--income)" : "currentColor"} />
+        </div>
+        <div className="text-left flex-1">
+          <div className="text-[13.5px]" style={{ fontWeight: 600 }}>Segurança</div>
+          <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>{pinEnabled ? "Trava por PIN ativada" : "Ativar trava por PIN"}</div>
+        </div>
+      </button>
+    </Sheet>
   );
 }
 
