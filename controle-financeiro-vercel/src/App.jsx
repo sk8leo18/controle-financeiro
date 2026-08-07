@@ -146,6 +146,18 @@ function addDays(dateStr, days) {
 // Histórico de novidades do app — atualize este array a cada leva de melhorias.
 const CHANGELOG = [
   {
+    version: 11,
+    date: "04/08/2026",
+    title: "Acessibilidade",
+    items: [
+      "Tamanho do texto ajustável (pequeno, médio, grande) em todo o app",
+      "Tema de alto contraste, além do claro/escuro normal",
+      "Áreas de toque maiores em botões pequenos (apagar, editar, navegação de mês)",
+      "Foco visível ao navegar pelo teclado, e Esc fecha qualquer painel",
+      "Alertas de orçamento estourado agora também mostram um ícone/texto, não só a cor vermelha",
+    ],
+  },
+  {
     version: 10,
     date: "04/08/2026",
     title: "Orçamento por categoria, trava de PIN e exportação",
@@ -326,14 +338,29 @@ const GlobalStyle = () => (
     }
 
     input, select { font-family: 'IBM Plex Sans', sans-serif; }
-    input:focus, select:focus, button:focus-visible {
-      outline: 2px solid var(--navy); outline-offset: 1px;
+    input:focus, select:focus,
+    button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--navy); outline-offset: 2px; border-radius: 4px;
     }
 
     .fin-print-area { display: none; }
     @media print {
       #root { display: none !important; }
       .fin-print-area { display: block !important; }
+    }
+
+    /* Acessibilidade: área de toque mínima recomendada (44x44px) para
+       botões pequenos que só têm ícone, sem alterar o tamanho visual do ícone. */
+    .fin-tap44 {
+      position: relative;
+    }
+    .fin-tap44::after {
+      content: "";
+      position: absolute;
+      top: 50%; left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
     }
   `}</style>
 );
@@ -369,17 +396,26 @@ function AccountBadge({ account, size = 40 }) {
 }
 
 function Sheet({ title, onClose, children }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 z-30 flex flex-col justify-end md:items-center md:justify-center" style={{ background: "rgba(27,42,34,0.45)" }} onClick={onClose}>
       <div
         className="fin-sheet fin-scroll overflow-y-auto rounded-t-[28px] md:rounded-[24px] px-5 pt-4 pb-6 max-h-[85%] w-full md:max-w-[440px] md:mx-4"
         style={{ background: "var(--card)" }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
       >
         <div className="flex items-center justify-between mb-4">
           <div className="w-8" />
           <div className="w-10 h-1 rounded-full" style={{ background: "var(--line)" }} />
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "var(--paper)" }}>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full fin-tap44" style={{ background: "var(--paper)" }} aria-label="Fechar">
             <X size={15} />
           </button>
         </div>
@@ -728,7 +764,7 @@ export default function App() {
     >
       <GlobalStyle />
       <div className="md:flex md:items-start">
-        <SidebarNav tab={tab} setTab={setTab} user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} theme={theme} onToggleTheme={toggleTheme} onOpenChangelog={openChangelog} hasNewChangelog={hasNewChangelog} onOpenSecurity={() => setShowSecurity(true)} pinEnabled={pinEnabled} />
+        <SidebarNav tab={tab} setTab={setTab} user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} theme={theme} onToggleTheme={toggleTheme} onOpenChangelog={openChangelog} hasNewChangelog={hasNewChangelog} onOpenSecurity={() => setShowSecurity(true)} pinEnabled={pinEnabled} onOpenAccessibility={() => setShowAccessibility(true)} />
 
         <div className="flex-1 min-w-0 md:ml-60">
           <div
@@ -848,6 +884,16 @@ export default function App() {
           onToggleTheme={toggleTheme}
           onOpenSecurity={() => setShowSecurity(true)}
           pinEnabled={pinEnabled}
+          onOpenAccessibility={() => setShowAccessibility(true)}
+        />
+      )}
+      {showAccessibility && (
+        <AccessibilitySheet
+          onClose={() => setShowAccessibility(false)}
+          fontScale={fontScale}
+          setFontScale={setFontScale}
+          highContrast={highContrast}
+          setHighContrast={setHighContrast}
         />
       )}
 
@@ -873,7 +919,7 @@ const NAV_ITEMS = [
   { id: "reports", label: "Relatórios", shortLabel: "Relat.", Icon: BarChart3 },
 ];
 
-function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleTheme, onOpenChangelog, hasNewChangelog, onOpenSecurity, pinEnabled }) {
+function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleTheme, onOpenChangelog, hasNewChangelog, onOpenSecurity, pinEnabled, onOpenAccessibility }) {
   return (
     <aside
       className="hidden md:flex md:flex-col md:w-60 md:h-dvh md:sticky md:top-0 md:flex-shrink-0 px-4 py-6"
@@ -913,6 +959,14 @@ function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleThe
             style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
           >
             <Lock size={14} color={pinEnabled ? "var(--income)" : "currentColor"} />
+          </button>
+          <button
+            onClick={onOpenAccessibility}
+            aria-label="Acessibilidade"
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
+          >
+            <Accessibility size={14} />
           </button>
         </div>
       </div>
@@ -1110,19 +1164,19 @@ function ConfirmDeleteButton({ onConfirm, size = 13 }) {
       <div className="flex items-center gap-1 flex-shrink-0">
         <button
           onClick={(e) => { e.stopPropagation(); onConfirm(); }}
-          className="fin-mono text-[10px] px-2 py-1 rounded-full"
+          className="fin-mono text-[10px] px-2 py-1.5 rounded-full fin-tap44"
           style={{ background: "var(--expense)", color: "#fff" }}
         >
           Apagar?
         </button>
-        <button onClick={(e) => { e.stopPropagation(); setConfirming(false); }} className="p-1 flex-shrink-0" style={{ color: "var(--muted)" }}>
+        <button onClick={(e) => { e.stopPropagation(); setConfirming(false); }} className="p-1.5 flex-shrink-0 fin-tap44" style={{ color: "var(--muted)" }} aria-label="Cancelar">
           <X size={size} />
         </button>
       </div>
     );
   }
   return (
-    <button onClick={(e) => { e.stopPropagation(); setConfirming(true); }} className="p-1 flex-shrink-0" style={{ color: "var(--muted)" }}>
+    <button onClick={(e) => { e.stopPropagation(); setConfirming(true); }} className="p-1.5 flex-shrink-0 fin-tap44" style={{ color: "var(--muted)" }} aria-label="Apagar">
       <Trash2 size={size} />
     </button>
   );
@@ -1146,7 +1200,7 @@ function TxnRow({ t, data, onDelete, onEdit }) {
         {t.type === "income" ? "+" : "-"}{fmt(t.amount)}
       </div>
       {onEdit && (
-        <button onClick={() => onEdit(t)} className="p-1 flex-shrink-0" style={{ color: "var(--muted)" }}>
+        <button onClick={() => onEdit(t)} className="p-1.5 flex-shrink-0 fin-tap44" style={{ color: "var(--muted)" }} aria-label="Editar lançamento">
           <Pencil size={13} />
         </button>
       )}
@@ -1277,7 +1331,7 @@ function FaturaView({ data, onDelete, onAdd, onEdit, onOpenBudgets }) {
           style={{ background: "var(--card)", border: "1px solid var(--line)", color: "var(--ink)" }}
         />
         {isSearching && (
-          <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }}>
+          <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 fin-tap44" style={{ color: "var(--muted)" }} aria-label="Limpar busca">
             <X size={14} />
           </button>
         )}
@@ -1288,15 +1342,15 @@ function FaturaView({ data, onDelete, onAdd, onEdit, onOpenBudgets }) {
           {/* Cartão de fatura, com navegação de mês */}
           <div className="rounded-2xl px-4 py-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)", opacity: isSearching ? 0.5 : 1 }}>
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => setMonth((m) => shiftMonth(m, -1))} disabled={isSearching} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
-                <ChevronLeft size={15} />
+              <button onClick={() => setMonth((m) => shiftMonth(m, -1))} disabled={isSearching} className="w-9 h-9 rounded-full flex items-center justify-center fin-tap44" style={{ background: "var(--paper)" }} aria-label="Mês anterior">
+                <ChevronLeft size={16} />
               </button>
               <div className="text-center">
                 <div className="fin-mono text-[13.5px] font-semibold">{MONTH_NAMES[m - 1]} {y}</div>
                 {isCurrent && <div className="fin-mono text-[9px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>Mês atual</div>}
               </div>
-              <button onClick={() => setMonth((m) => shiftMonth(m, 1))} disabled={isSearching} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
-                <ChevronRight size={15} />
+              <button onClick={() => setMonth((m) => shiftMonth(m, 1))} disabled={isSearching} className="w-9 h-9 rounded-full flex items-center justify-center fin-tap44" style={{ background: "var(--paper)" }} aria-label="Próximo mês">
+                <ChevronRight size={16} />
               </button>
             </div>
 
@@ -1339,9 +1393,10 @@ function FaturaView({ data, onDelete, onAdd, onEdit, onOpenBudgets }) {
                     <span className="text-[12px] flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: b.color }} />
                       {b.name}
+                      {b.pct > 100 && <AlertTriangle size={11} color="var(--expense)" aria-label="Orçamento estourado" />}
                     </span>
                     <span className="fin-mono text-[11px]" style={{ color: b.pct > 100 ? "var(--expense)" : "var(--muted)" }}>
-                      {fmt(b.spent)} / {fmt(b.limit)}
+                      {fmt(b.spent)} / {fmt(b.limit)}{b.pct > 100 ? " · estourou" : ""}
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--paper)" }}>
@@ -1977,7 +2032,60 @@ function PinLockOverlay({ verifyPin, onUnlock }) {
   );
 }
 
-function MoreMenuSheet({ onClose, theme, onToggleTheme, onOpenSecurity, pinEnabled }) {
+function AccessibilitySheet({ onClose, fontScale, setFontScale, highContrast, setHighContrast }) {
+  const scales = [
+    { id: "small", label: "A", size: 13 },
+    { id: "medium", label: "A", size: 16 },
+    { id: "large", label: "A", size: 19 },
+  ];
+  return (
+    <Sheet title="Acessibilidade" onClose={onClose}>
+      <FieldLabel>Tamanho do texto</FieldLabel>
+      <div className="flex rounded-xl overflow-hidden mb-1" style={{ border: "1px solid var(--line)" }}>
+        {scales.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setFontScale(s.id)}
+            className="fin-mono flex-1 py-3 flex items-center justify-center fin-tap44"
+            style={{
+              background: fontScale === s.id ? "var(--ink)" : "var(--paper)",
+              color: fontScale === s.id ? "var(--card)" : "var(--ink)",
+              fontSize: s.size,
+            }}
+          >{s.label}</button>
+        ))}
+      </div>
+      <p className="text-[11px] mb-5" style={{ color: "var(--muted)" }}>
+        Deixa o texto e os elementos do app maiores ou menores, em toda a tela.
+      </p>
+
+      <button
+        onClick={() => setHighContrast((v) => !v)}
+        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5"
+        style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+      >
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--paper)" }}>
+          <Accessibility size={16} />
+        </div>
+        <div className="text-left flex-1">
+          <div className="text-[13.5px]" style={{ fontWeight: 600 }}>Alto contraste</div>
+          <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>Preto e branco puros, texto mais nítido</div>
+        </div>
+        <div
+          className="w-11 h-6 rounded-full flex-shrink-0 relative"
+          style={{ background: highContrast ? "var(--income)" : "var(--line)" }}
+        >
+          <div
+            className="w-5 h-5 rounded-full absolute top-0.5 transition-all"
+            style={{ background: "#fff", left: highContrast ? 22 : 2 }}
+          />
+        </div>
+      </button>
+    </Sheet>
+  );
+}
+
+function MoreMenuSheet({ onClose, theme, onToggleTheme, onOpenSecurity, pinEnabled, onOpenAccessibility }) {
   return (
     <Sheet title="Mais opções" onClose={onClose}>
       <button
@@ -1996,7 +2104,7 @@ function MoreMenuSheet({ onClose, theme, onToggleTheme, onOpenSecurity, pinEnabl
 
       <button
         onClick={() => { onClose(); onOpenSecurity(); }}
-        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5"
+        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-2.5"
         style={{ background: "var(--card)", border: "1px solid var(--line)" }}
       >
         <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--paper)" }}>
@@ -2005,6 +2113,20 @@ function MoreMenuSheet({ onClose, theme, onToggleTheme, onOpenSecurity, pinEnabl
         <div className="text-left flex-1">
           <div className="text-[13.5px]" style={{ fontWeight: 600 }}>Segurança</div>
           <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>{pinEnabled ? "Trava por PIN ativada" : "Ativar trava por PIN"}</div>
+        </div>
+      </button>
+
+      <button
+        onClick={() => { onClose(); onOpenAccessibility(); }}
+        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5"
+        style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+      >
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--paper)" }}>
+          <Accessibility size={16} />
+        </div>
+        <div className="text-left flex-1">
+          <div className="text-[13.5px]" style={{ fontWeight: 600 }}>Acessibilidade</div>
+          <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>Tamanho do texto e alto contraste</div>
         </div>
       </button>
     </Sheet>
