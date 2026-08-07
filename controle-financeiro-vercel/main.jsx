@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus, Wallet, TrendingUp, Home as HomeIcon, Receipt, PiggyBank, BarChart3,
   Trash2, X, Utensils, Car, Gamepad2, HeartPulse, GraduationCap, ShoppingBag,
   MoreHorizontal, CreditCard, Target, ArrowUpRight, ArrowDownRight, Landmark,
-  Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles
+  Check, ChevronLeft, ChevronRight, LogOut, Calculator, Sun, Moon, Bell, Sparkles, Search, Pencil,
+  Smartphone, Cloud, Lock, Delete, Download, Printer, ShieldCheck, Accessibility,
+  Type, AlertTriangle
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -68,6 +71,33 @@ const THEMES = {
   },
 };
 
+// Variante de alto contraste — texto e fundo praticamente pretos/brancos,
+// bordas mais fortes, cores mais saturadas. Ativada junto com o tema normal.
+const THEMES_HC = {
+  light: {
+    "--paper": "#FFFFFF",
+    "--ink": "#000000",
+    "--navy": "#00397A",
+    "--expense": "#B00020",
+    "--income": "#00591C",
+    "--gold": "#7A5900",
+    "--card": "#FFFFFF",
+    "--muted": "#333333",
+    "--line": "#000000",
+  },
+  dark: {
+    "--paper": "#000000",
+    "--ink": "#FFFFFF",
+    "--navy": "#8AB4FF",
+    "--expense": "#FF7A7A",
+    "--income": "#6FE28C",
+    "--gold": "#FFD166",
+    "--card": "#000000",
+    "--muted": "#DADADA",
+    "--line": "#FFFFFF",
+  },
+};
+
 // Selos coloridos (iniciais + cor da marca) — não são os logotipos oficiais,
 // que são propriedade registrada de cada instituição.
 const BANKS = [
@@ -79,6 +109,19 @@ const BANKS = [
   { name: "Bradesco", color: "#CC092F", initials: "Br" },
   { name: "Inter", color: "#FF7A00", initials: "In" },
   { name: "C6 Bank", color: "#1B1B1B", initials: "C6" },
+  { name: "PicPay", color: "#21C25E", initials: "Pic" },
+  { name: "Mercado Pago", color: "#00AAEF", initials: "MP" },
+  { name: "PagBank", color: "#00A868", initials: "Pag" },
+  { name: "Next", color: "#00E28A", initials: "Nx" },
+  { name: "Neon", color: "#17C3D6", initials: "Ne" },
+  { name: "Will Bank", color: "#6E2FEB", initials: "Wi" },
+  { name: "BTG Pactual", color: "#002639", initials: "BTG" },
+  { name: "Sicoob", color: "#00995D", initials: "Si" },
+  { name: "Sicredi", color: "#7AB51D", initials: "Sc" },
+  { name: "XP Investimentos", color: "#161616", initials: "XP" },
+  { name: "Banco Pan", color: "#F2631F", initials: "Pan" },
+  { name: "Safra", color: "#003865", initials: "Sa" },
+  { name: "Original", color: "#00B8A9", initials: "Or" },
 ];
 
 const uid = () => "id_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -94,10 +137,81 @@ const fmtDate = (iso) => {
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const monthKey = (iso) => iso.slice(0, 7);
 
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 // Histórico de novidades do app — atualize este array a cada leva de melhorias.
 const CHANGELOG = [
   {
+    version: 11,
+    date: "04/08/2026",
+    title: "Acessibilidade",
+    items: [
+      "Tamanho do texto ajustável (pequeno, médio, grande) em todo o app",
+      "Tema de alto contraste, além do claro/escuro normal",
+      "Áreas de toque maiores em botões pequenos (apagar, editar, navegação de mês)",
+      "Foco visível ao navegar pelo teclado, e Esc fecha qualquer painel",
+      "Alertas de orçamento estourado agora também mostram um ícone/texto, não só a cor vermelha",
+    ],
+  },
+  {
+    version: 10,
+    date: "04/08/2026",
+    title: "Orçamento por categoria, trava de PIN e exportação",
+    items: [
+      "Defina um limite mensal por categoria e acompanhe o progresso no Extrato",
+      "Trava o app com um PIN de 4 dígitos, com bloqueio automático após 1 minuto em segundo plano",
+      "Exportar todos os lançamentos em CSV (Excel) ou em PDF (via impressão do navegador)",
+    ],
+  },
+  {
+    version: 9,
+    date: "29/07/2026",
+    title: "Menu inferior corrigido e reforço no modo claro/escuro",
+    items: [
+      "Corrigido o menu inferior do celular, que ficava espremido com 6 abas",
+      "Reforçada a trava de modo claro/escuro contra o \"forçar modo escuro\" de alguns celulares Android",
+      "Barra de conta (topo) redesenhada, tanto logado quanto sem login",
+    ],
+  },
+  {
+    version: 8,
+    date: "29/07/2026",
+    title: "Menu renomeado e mais bancos/fintechs",
+    items: [
+      "\"Fatura\" agora se chama \"Extrato\" e \"Salário\" virou \"Calculadora\" no menu",
+      "Lista de bancos e fintechs ampliada (PicPay, Mercado Pago, PagBank, Next, Neon, Will Bank, BTG, Sicoob, Sicredi, XP, Banco Pan, Safra, Original e outros)",
+      "Busca dentro da lista de bancos e visual mais organizado na tela de Contas",
+    ],
+  },
+  {
+    version: 7,
+    date: "29/07/2026",
+    title: "Editar lançamento, comparação mensal e lembretes",
+    items: [
+      "Agora dá pra editar um lançamento existente (toque nele ou no lápis)",
+      "A Fatura mostra se você gastou mais ou menos que no mês anterior",
+      "Um aviso na tela Início mostra contas a vencer nos próximos 7 dias",
+    ],
+  },
+  {
+    version: 6,
+    date: "28/07/2026",
+    title: "Busca, parcelamento e confirmação ao apagar",
+    items: [
+      "Busca por nome ou categoria dentro da Fatura, procurando em todos os meses",
+      "Lançamentos parcelados: divide o valor total em várias parcelas mensais",
+      "Lançamentos fixos: repete o mesmo valor todo mês automaticamente",
+      "Agora é preciso confirmar antes de apagar qualquer lançamento, conta ou meta",
+      "Corrigido bug do modo claro que deixava campos e telas com aparência escura/invertida em alguns celulares",
+    ],
+  },
+  {
     version: 5,
+    date: "28/07/2026",
     title: "Modo escuro e calculadora de salário",
     items: [
       "Botão para alternar entre modo claro e escuro, com preferência salva",
@@ -107,6 +221,7 @@ const CHANGELOG = [
   },
   {
     version: 4,
+    date: "28/07/2026",
     title: "Layout novo para PC e app instalável",
     items: [
       "Menu lateral e layout em colunas ao abrir no computador",
@@ -116,6 +231,7 @@ const CHANGELOG = [
   },
   {
     version: 3,
+    date: "27/07/2026",
     title: "Fatura mensal",
     items: [
       "O extrato agora é organizado por mês, como uma fatura de cartão",
@@ -124,6 +240,7 @@ const CHANGELOG = [
   },
   {
     version: 2,
+    date: "27/07/2026",
     title: "Login com Google",
     items: [
       "Os dados agora podem ser salvos na nuvem e sincronizados entre aparelhos",
@@ -132,6 +249,7 @@ const CHANGELOG = [
   },
   {
     version: 1,
+    date: "27/07/2026",
     title: "Lançamento do app",
     items: [
       "Controle de receitas, despesas, contas, metas e relatórios com gráficos",
@@ -220,8 +338,29 @@ const GlobalStyle = () => (
     }
 
     input, select { font-family: 'IBM Plex Sans', sans-serif; }
-    input:focus, select:focus, button:focus-visible {
-      outline: 2px solid var(--navy); outline-offset: 1px;
+    input:focus, select:focus,
+    button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--navy); outline-offset: 2px; border-radius: 4px;
+    }
+
+    .fin-print-area { display: none; }
+    @media print {
+      #root { display: none !important; }
+      .fin-print-area { display: block !important; }
+    }
+
+    /* Acessibilidade: área de toque mínima recomendada (44x44px) para
+       botões pequenos que só têm ícone, sem alterar o tamanho visual do ícone. */
+    .fin-tap44 {
+      position: relative;
+    }
+    .fin-tap44::after {
+      content: "";
+      position: absolute;
+      top: 50%; left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
     }
   `}</style>
 );
@@ -257,17 +396,26 @@ function AccountBadge({ account, size = 40 }) {
 }
 
 function Sheet({ title, onClose, children }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 z-30 flex flex-col justify-end md:items-center md:justify-center" style={{ background: "rgba(27,42,34,0.45)" }} onClick={onClose}>
       <div
         className="fin-sheet fin-scroll overflow-y-auto rounded-t-[28px] md:rounded-[24px] px-5 pt-4 pb-6 max-h-[85%] w-full md:max-w-[440px] md:mx-4"
         style={{ background: "var(--card)" }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
       >
         <div className="flex items-center justify-between mb-4">
           <div className="w-8" />
           <div className="w-10 h-1 rounded-full" style={{ background: "var(--line)" }} />
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "var(--paper)" }}>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full fin-tap44" style={{ background: "var(--paper)" }} aria-label="Fechar">
             <X size={15} />
           </button>
         </div>
@@ -315,6 +463,7 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState("home");
   const [sheet, setSheet] = useState(null); // 'txn' | 'account' | 'goal' | null
+  const [editingTxn, setEditingTxn] = useState(null);
   const [saveError, setSaveError] = useState(false);
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(!hasFirebaseConfig);
@@ -334,11 +483,105 @@ export default function App() {
     try {
       localStorage.setItem("financas-theme", theme);
     } catch (e) {}
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", THEMES[theme]["--paper"]);
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeColorMeta) themeColorMeta.setAttribute("content", THEMES[theme]["--paper"]);
+
+    // Trava o color-scheme no tema ativo (em vez de "light dark"), para que
+    // selects, campos de data e a barra de rolagem nativos não fiquem com
+    // aparência diferente do resto do app quando o celular está no tema oposto.
+    // Atualiza tanto a tag <meta> quanto o estilo computado, pois alguns
+    // navegadores/Android verificam a tag diretamente.
+    let colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
+    if (!colorSchemeMeta) {
+      colorSchemeMeta = document.createElement("meta");
+      colorSchemeMeta.setAttribute("name", "color-scheme");
+      document.head.appendChild(colorSchemeMeta);
+    }
+    colorSchemeMeta.setAttribute("content", theme);
+
+    document.documentElement.style.colorScheme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.style.background = THEMES[theme]["--paper"];
+    document.body.style.background = THEMES[theme]["--paper"];
+    document.body.style.colorScheme = theme;
   }, [theme]);
 
   const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
+
+  const [fontScale, setFontScale] = useState(() => {
+    try { return localStorage.getItem("financas-font-scale") || "medium"; } catch (e) { return "medium"; }
+  });
+  const [highContrast, setHighContrast] = useState(() => {
+    try { return localStorage.getItem("financas-high-contrast") === "1"; } catch (e) { return false; }
+  });
+  const [showAccessibility, setShowAccessibility] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem("financas-font-scale", fontScale); } catch (e) {}
+  }, [fontScale]);
+
+  useEffect(() => {
+    try { localStorage.setItem("financas-high-contrast", highContrast ? "1" : "0"); } catch (e) {}
+  }, [highContrast]);
+
+  const FONT_SCALES = { small: "92%", medium: "100%", large: "115%" };
+
+  const [pinEnabled, setPinEnabled] = useState(() => {
+    try { return localStorage.getItem("financas-pin-enabled") === "1"; } catch (e) { return false; }
+  });
+  const [locked, setLocked] = useState(() => {
+    try { return localStorage.getItem("financas-pin-enabled") === "1"; } catch (e) { return false; }
+  });
+  const [showSecurity, setShowSecurity] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  const hashPin = async (pin) => {
+    const enc = new TextEncoder().encode(pin);
+    const buf = await crypto.subtle.digest("SHA-256", enc);
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  };
+
+  const verifyPin = useCallback(async (pin) => {
+    try {
+      const stored = localStorage.getItem("financas-pin-hash");
+      if (!stored) return false;
+      return (await hashPin(pin)) === stored;
+    } catch (e) {
+      return false;
+    }
+  }, []);
+
+  const setupPin = useCallback(async (pin) => {
+    const hash = await hashPin(pin);
+    try {
+      localStorage.setItem("financas-pin-hash", hash);
+      localStorage.setItem("financas-pin-enabled", "1");
+    } catch (e) {}
+    setPinEnabled(true);
+  }, []);
+
+  const disablePin = useCallback(() => {
+    try {
+      localStorage.removeItem("financas-pin-hash");
+      localStorage.removeItem("financas-pin-enabled");
+    } catch (e) {}
+    setPinEnabled(false);
+  }, []);
+
+  // Trava de novo o app se ele ficar em segundo plano por mais de 1 minuto
+  useEffect(() => {
+    if (!pinEnabled) return;
+    let hiddenAt = null;
+    const onVis = () => {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+      } else if (hiddenAt && Date.now() - hiddenAt > 60000) {
+        setLocked(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [pinEnabled]);
 
   const [showChangelog, setShowChangelog] = useState(false);
   const [seenVersion, setSeenVersion] = useState(() => {
@@ -397,10 +640,10 @@ export default function App() {
         if (res && res.value) {
           setData(JSON.parse(res.value));
         } else {
-          setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" } });
+          setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" }, budgets: {} });
         }
       } catch (e) {
-        setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" } });
+        setData({ accounts: DEFAULT_ACCOUNTS, categories: DEFAULT_CATEGORIES, transactions: [], goals: [], settings: { grossSalary: "", consignado: "" }, budgets: {} });
       } finally {
         setLoaded(true);
       }
@@ -421,12 +664,16 @@ export default function App() {
     return () => clearTimeout(t);
   }, [data, loaded]);
 
-  const addTransaction = useCallback((txn) => {
-    setData((d) => ({ ...d, transactions: [{ ...txn, id: uid() }, ...d.transactions] }));
+  const addTransactions = useCallback((txns) => {
+    setData((d) => ({ ...d, transactions: [...txns.map((t) => ({ ...t, id: uid() })), ...d.transactions] }));
   }, []);
 
   const deleteTransaction = useCallback((id) => {
     setData((d) => ({ ...d, transactions: d.transactions.filter((t) => t.id !== id) }));
+  }, []);
+
+  const updateTransaction = useCallback((id, patch) => {
+    setData((d) => ({ ...d, transactions: d.transactions.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
   }, []);
 
   const addAccount = useCallback((acc) => {
@@ -458,6 +705,10 @@ export default function App() {
 
   const updateSettings = useCallback((patch) => {
     setData((d) => ({ ...d, settings: { ...(d.settings || {}), ...patch } }));
+  }, []);
+
+  const updateBudget = useCallback((categoryId, amount) => {
+    setData((d) => ({ ...d, budgets: { ...(d.budgets || {}), [categoryId]: amount } }));
   }, []);
 
   const balances = useMemo(() => {
@@ -492,62 +743,84 @@ export default function App() {
     );
   }
 
-  const cssVars = THEMES[theme];
+  const cssVars = highContrast ? THEMES_HC[theme] : THEMES[theme];
+
+  if (locked) {
+    return (
+      <div
+        className="fin-app w-full min-h-dvh flex items-center justify-center"
+        style={{ ...cssVars, background: "var(--paper)", colorScheme: theme, zoom: FONT_SCALES[fontScale], paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
+        <GlobalStyle />
+        <PinLockOverlay verifyPin={verifyPin} onUnlock={() => setLocked(false)} />
+      </div>
+    );
+  }
 
   return (
     <div
       className="fin-app w-full min-h-dvh"
-      style={{ ...cssVars, background: "var(--paper)" }}
+      style={{ ...cssVars, background: "var(--paper)", colorScheme: theme, zoom: FONT_SCALES[fontScale] }}
     >
       <GlobalStyle />
       <div className="md:flex md:items-start">
-        <SidebarNav tab={tab} setTab={setTab} user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} theme={theme} onToggleTheme={toggleTheme} onOpenChangelog={openChangelog} hasNewChangelog={hasNewChangelog} />
+        <SidebarNav tab={tab} setTab={setTab} user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} theme={theme} onToggleTheme={toggleTheme} onOpenChangelog={openChangelog} hasNewChangelog={hasNewChangelog} onOpenSecurity={() => setShowSecurity(true)} pinEnabled={pinEnabled} onOpenAccessibility={() => setShowAccessibility(true)} />
 
         <div className="flex-1 min-w-0 md:ml-60">
           <div
-            className="md:hidden flex items-center justify-between px-5"
-            style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)", paddingBottom: 8 }}
+            className="md:hidden flex items-center justify-between gap-2 px-5"
+            style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)", paddingBottom: 10 }}
           >
             {hasFirebaseConfig ? (
               user ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  {user.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />}
-                  <span className="fin-mono text-[11px] truncate" style={{ color: "var(--muted)" }}>
+                <div className="flex items-center gap-1.5 min-w-0 rounded-full pl-1 pr-3 py-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--navy)" }}>
+                      <span className="fin-mono text-[10px] font-semibold" style={{ color: "#fff" }}>{(user.displayName || user.email || "U")[0].toUpperCase()}</span>
+                    </div>
+                  )}
+                  <span className="fin-mono text-[11px] truncate max-w-[90px]">
                     {user.displayName ? user.displayName.split(" ")[0] : user.email}
                   </span>
+                  <Cloud size={12} color="var(--income)" className="flex-shrink-0" />
                 </div>
               ) : (
-                <span className="fin-mono text-[11px]" style={{ color: "var(--muted)" }}>Dados salvos neste aparelho</span>
+                <div className="flex items-center gap-1.5 min-w-0 rounded-full pl-2.5 pr-3 py-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+                  <Smartphone size={12} style={{ color: "var(--muted)" }} className="flex-shrink-0" />
+                  <span className="fin-mono text-[10.5px] truncate" style={{ color: "var(--muted)" }}>Salvo neste aparelho</span>
+                </div>
               )
             ) : <span />}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {hasFirebaseConfig && (
                 <button
                   onClick={user ? handleSignOut : handleSignIn}
-                  className="fin-mono text-[11px] flex-shrink-0"
-                  style={{ color: "var(--navy)" }}
+                  className="fin-mono text-[10.5px] flex-shrink-0 rounded-full px-3 py-2"
+                  style={{ color: user ? "var(--muted)" : "#fff", background: user ? "transparent" : "var(--navy)", border: user ? "1px solid var(--line)" : "none" }}
                 >
-                  {user ? "Sair" : "Entrar com Google"}
+                  {user ? "Sair" : "Entrar"}
                 </button>
               )}
               <button
                 onClick={openChangelog}
                 aria-label="Novidades"
-                className="relative w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                className="relative w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ background: "var(--card)", border: "1px solid var(--line)" }}
               >
-                <Bell size={13} />
+                <Bell size={15} />
                 {hasNewChangelog && (
-                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full" style={{ background: "var(--expense)" }} />
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: "var(--expense)" }} />
                 )}
               </button>
               <button
-                onClick={toggleTheme}
-                aria-label="Alternar tema"
-                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                onClick={() => setShowMoreMenu(true)}
+                aria-label="Mais opções"
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ background: "var(--card)", border: "1px solid var(--line)" }}
               >
-                {theme === "light" ? <Moon size={13} /> : <Sun size={13} />}
+                <MoreHorizontal size={16} />
               </button>
             </div>
           </div>
@@ -557,10 +830,10 @@ export default function App() {
             style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
           >
             {tab === "home" && (
-              <HomeView data={data} balances={balances} totalBalance={totalBalance} totals={totals} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} />
+              <HomeView data={data} balances={balances} totalBalance={totalBalance} totals={totals} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} onEdit={(t) => { setEditingTxn(t); setSheet("txn"); }} />
             )}
             {tab === "txns" && (
-              <FaturaView data={data} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} />
+              <FaturaView data={data} onDelete={deleteTransaction} onAdd={() => setSheet("txn")} onEdit={(t) => { setEditingTxn(t); setSheet("txn"); }} onOpenBudgets={() => setSheet("budgets")} />
             )}
             {tab === "accounts" && (
               <AccountsView data={data} balances={balances} onAdd={() => setSheet("account")} onDelete={deleteAccount} />
@@ -579,8 +852,10 @@ export default function App() {
       {sheet === "txn" && (
         <AddTxnSheet
           data={data}
-          onClose={() => setSheet(null)}
-          onSave={(t) => { addTransaction(t); setSheet(null); }}
+          editingTxn={editingTxn}
+          onClose={() => { setSheet(null); setEditingTxn(null); }}
+          onSave={(txns) => { addTransactions(txns); setSheet(null); }}
+          onUpdate={(id, patch) => { updateTransaction(id, patch); setSheet(null); setEditingTxn(null); }}
         />
       )}
       {sheet === "account" && (
@@ -589,7 +864,38 @@ export default function App() {
       {sheet === "goal" && (
         <AddGoalSheet onClose={() => setSheet(null)} onSave={(g) => { addGoal(g); setSheet(null); }} />
       )}
+      {sheet === "budgets" && (
+        <BudgetSheet data={data} onClose={() => setSheet(null)} onUpdateBudget={updateBudget} />
+      )}
       {showChangelog && <ChangelogSheet onClose={() => setShowChangelog(false)} />}
+      {showSecurity && (
+        <SecuritySheet
+          onClose={() => setShowSecurity(false)}
+          pinEnabled={pinEnabled}
+          verifyPin={verifyPin}
+          setupPin={setupPin}
+          disablePin={disablePin}
+        />
+      )}
+      {showMoreMenu && (
+        <MoreMenuSheet
+          onClose={() => setShowMoreMenu(false)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenSecurity={() => setShowSecurity(true)}
+          pinEnabled={pinEnabled}
+          onOpenAccessibility={() => setShowAccessibility(true)}
+        />
+      )}
+      {showAccessibility && (
+        <AccessibilitySheet
+          onClose={() => setShowAccessibility(false)}
+          fontScale={fontScale}
+          setFontScale={setFontScale}
+          highContrast={highContrast}
+          setHighContrast={setHighContrast}
+        />
+      )}
 
       {saveError && (
         <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 fin-mono text-[11px] px-3 py-1.5 rounded-full z-40" style={{ background: "var(--expense)", color: "#fff" }}>
@@ -605,28 +911,28 @@ export default function App() {
 /* ---------------------------------------------------------------------- */
 
 const NAV_ITEMS = [
-  { id: "home", label: "Início", Icon: HomeIcon },
-  { id: "txns", label: "Fatura", Icon: Receipt },
-  { id: "accounts", label: "Contas", Icon: Landmark },
-  { id: "goals", label: "Metas", Icon: Target },
-  { id: "salary", label: "Salário", Icon: Calculator },
-  { id: "reports", label: "Relatórios", Icon: BarChart3 },
+  { id: "home", label: "Início", shortLabel: "Início", Icon: HomeIcon },
+  { id: "txns", label: "Extrato", shortLabel: "Extrato", Icon: Receipt },
+  { id: "accounts", label: "Contas", shortLabel: "Contas", Icon: Landmark },
+  { id: "goals", label: "Metas", shortLabel: "Metas", Icon: Target },
+  { id: "salary", label: "Calculadora", shortLabel: "Calc.", Icon: Calculator },
+  { id: "reports", label: "Relatórios", shortLabel: "Relat.", Icon: BarChart3 },
 ];
 
-function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleTheme, onOpenChangelog, hasNewChangelog }) {
+function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleTheme, onOpenChangelog, hasNewChangelog, onOpenSecurity, pinEnabled, onOpenAccessibility }) {
   return (
     <aside
       className="hidden md:flex md:flex-col md:w-60 md:h-dvh md:sticky md:top-0 md:flex-shrink-0 px-4 py-6"
       style={{ borderRight: "1px solid var(--line)", background: "var(--card)" }}
     >
-      <div className="flex items-center justify-between px-2 mb-8">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--ink)" }}>
+      <div className="px-2 mb-7">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--ink)" }}>
             <Wallet size={17} color="var(--card)" />
           </div>
           <span className="fin-mono font-semibold text-[15px]">Financeiro</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={onOpenChangelog}
             aria-label="Novidades"
@@ -645,6 +951,22 @@ function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleThe
             style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
           >
             {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
+          <button
+            onClick={onOpenSecurity}
+            aria-label="Segurança"
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
+          >
+            <Lock size={14} color={pinEnabled ? "var(--income)" : "currentColor"} />
+          </button>
+          <button
+            onClick={onOpenAccessibility}
+            aria-label="Acessibilidade"
+            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
+          >
+            <Accessibility size={14} />
           </button>
         </div>
       </div>
@@ -702,20 +1024,23 @@ function SidebarNav({ tab, setTab, user, onSignIn, onSignOut, theme, onToggleThe
 function TabBar({ tab, setTab }) {
   return (
     <div
-      className="md:hidden fixed bottom-0 left-0 right-0 flex items-stretch justify-between px-1 z-20"
-      style={{ height: 68, background: "var(--card)", borderTop: "1px solid var(--line)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      className="md:hidden fixed bottom-0 left-0 right-0 flex items-stretch z-20"
+      style={{ height: 64, background: "var(--card)", borderTop: "1px solid var(--line)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      {NAV_ITEMS.map(({ id, label, Icon }) => {
+      {NAV_ITEMS.map(({ id, shortLabel, Icon }) => {
         const active = tab === id;
         return (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className="fin-tab-btn flex-1 flex flex-col items-center justify-center gap-1"
+            className="fin-tab-btn flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-0.5"
             style={{ color: active ? "var(--ink)" : "var(--muted)" }}
           >
-            <Icon size={19} strokeWidth={active ? 2.4 : 1.8} />
-            <span className="fin-mono" style={{ fontSize: 9.5, letterSpacing: ".03em" }}>{label}</span>
+            <Icon size={18} strokeWidth={active ? 2.4 : 1.8} />
+            <span
+              className="fin-mono w-full text-center"
+              style={{ fontSize: 8.5, letterSpacing: ".01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+            >{shortLabel}</span>
           </button>
         );
       })}
@@ -727,8 +1052,19 @@ function TabBar({ tab, setTab }) {
 /* Home                                                                    */
 /* ---------------------------------------------------------------------- */
 
-function HomeView({ data, totalBalance, totals, onDelete, onAdd }) {
+function HomeView({ data, totalBalance, totals, onDelete, onAdd, onEdit }) {
   const recent = data.transactions.slice(0, 6);
+  const today = todayISO();
+  const limit = addDays(today, 7);
+  const upcoming = useMemo(
+    () =>
+      data.transactions
+        .filter((t) => t.type === "expense" && t.date >= today && t.date <= limit)
+        .sort((a, b) => (a.date > b.date ? 1 : -1)),
+    [data.transactions, today, limit]
+  );
+  const upcomingTotal = upcoming.reduce((s, t) => s + t.amount, 0);
+
   return (
     <div className="px-5 md:px-8 pt-2 md:pt-8 pb-6">
       <div className="md:grid md:grid-cols-[340px_1fr] md:gap-8 md:items-start">
@@ -758,6 +1094,32 @@ function HomeView({ data, totalBalance, totals, onDelete, onAdd }) {
           <button onClick={onAdd} className="fin-btn-primary w-full rounded-2xl py-3 text-[13px] mb-6 md:mb-0 flex items-center justify-center gap-2">
             <Plus size={16} /> Novo lançamento
           </button>
+
+          {upcoming.length > 0 && (
+            <div className="rounded-2xl px-4 py-3.5 mt-5" style={{ background: "var(--gold)" + "18", border: "1px solid var(--gold)" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Bell size={14} color="var(--gold)" />
+                <span className="fin-mono text-[11px] uppercase tracking-wider" style={{ color: "var(--gold)" }}>
+                  Contas a vencer (7 dias)
+                </span>
+              </div>
+              {upcoming.slice(0, 4).map((t) => {
+                const cat = data.categories.find((c) => c.id === t.categoryId);
+                return (
+                  <div key={t.id} className="flex items-center justify-between py-1">
+                    <span className="text-[12.5px] truncate pr-2">{t.description || cat?.name || "Despesa"}</span>
+                    <span className="fin-mono text-[11.5px] flex-shrink-0" style={{ color: "var(--muted)" }}>{fmtDate(t.date)} · {fmt(t.amount)}</span>
+                  </div>
+                );
+              })}
+              {upcoming.length > 1 && (
+                <div className="flex items-center justify-between pt-2 mt-1" style={{ borderTop: "1px dashed var(--line)" }}>
+                  <span className="fin-mono text-[11px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>Total</span>
+                  <span className="fin-mono text-[13px] font-semibold" style={{ color: "var(--expense)" }}>{fmt(upcomingTotal)}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div>
@@ -770,7 +1132,7 @@ function HomeView({ data, totalBalance, totals, onDelete, onAdd }) {
           ) : (
             <div className="md:rounded-2xl md:px-4 md:border" style={{ borderColor: "var(--line)", background: "transparent" }}>
               {recent.map((t) => (
-                <TxnRow key={t.id} t={t} data={data} onDelete={onDelete} />
+                <TxnRow key={t.id} t={t} data={data} onDelete={onDelete} onEdit={onEdit} />
               ))}
             </div>
           )}
@@ -788,7 +1150,39 @@ function EmptyState({ text }) {
   );
 }
 
-function TxnRow({ t, data, onDelete }) {
+function ConfirmDeleteButton({ onConfirm, size = 13 }) {
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!confirming) return;
+    const t = setTimeout(() => setConfirming(false), 3000);
+    return () => clearTimeout(t);
+  }, [confirming]);
+
+  if (confirming) {
+    return (
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); onConfirm(); }}
+          className="fin-mono text-[10px] px-2 py-1.5 rounded-full fin-tap44"
+          style={{ background: "var(--expense)", color: "#fff" }}
+        >
+          Apagar?
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); setConfirming(false); }} className="p-1.5 flex-shrink-0 fin-tap44" style={{ color: "var(--muted)" }} aria-label="Cancelar">
+          <X size={size} />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button onClick={(e) => { e.stopPropagation(); setConfirming(true); }} className="p-1.5 flex-shrink-0 fin-tap44" style={{ color: "var(--muted)" }} aria-label="Apagar">
+      <Trash2 size={size} />
+    </button>
+  );
+}
+
+function TxnRow({ t, data, onDelete, onEdit }) {
   const cat = data.categories.find((c) => c.id === t.categoryId);
   const acc = data.accounts.find((a) => a.id === t.accountId);
   return (
@@ -796,18 +1190,21 @@ function TxnRow({ t, data, onDelete }) {
       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: (cat?.color || "#6E756A") + "20" }}>
         <CategoryIcon cat={cat} size={15} />
       </div>
-      <div className="flex-1 min-w-0">
+      <button className="flex-1 min-w-0 text-left" onClick={() => onEdit && onEdit(t)}>
         <div className="text-[13.5px] truncate" style={{ fontWeight: 500 }}>{t.description || cat?.name || "Sem categoria"}</div>
         <div className="fin-mono text-[10.5px]" style={{ color: "var(--muted)" }}>
           {fmtDate(t.date)} · {acc?.name || "—"}
         </div>
-      </div>
+      </button>
       <div className="fin-mono text-[13.5px] font-semibold" style={{ color: t.type === "income" ? "var(--income)" : "var(--expense)" }}>
         {t.type === "income" ? "+" : "-"}{fmt(t.amount)}
       </div>
-      <button onClick={() => onDelete(t.id)} className="ml-1 p-1" style={{ color: "var(--muted)" }}>
-        <Trash2 size={13} />
-      </button>
+      {onEdit && (
+        <button onClick={() => onEdit(t)} className="p-1.5 flex-shrink-0 fin-tap44" style={{ color: "var(--muted)" }} aria-label="Editar lançamento">
+          <Pencil size={13} />
+        </button>
+      )}
+      <ConfirmDeleteButton onConfirm={() => onDelete(t.id)} />
     </div>
   );
 }
@@ -822,15 +1219,40 @@ function shiftMonth(monthStr, delta) {
   return d.toISOString().slice(0, 7);
 }
 
-function FaturaView({ data, onDelete, onAdd }) {
+// Soma meses a uma data (YYYY-MM-DD) sem "estourar" para o mês seguinte
+// quando o mês de destino tem menos dias (ex: 31/01 + 1 mês = 28/02, não 03/03).
+function addMonthsClamped(dateStr, months) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const target = new Date(y, m - 1 + months, 1);
+  const daysInTarget = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(d, daysInTarget));
+  return target.toISOString().slice(0, 10);
+}
+
+function FaturaView({ data, onDelete, onAdd, onEdit, onOpenBudgets }) {
   const [month, setMonth] = useState(() => todayISO().slice(0, 7));
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const isSearching = search.trim().length > 0;
 
   const monthTxns = useMemo(() => {
     return data.transactions
       .filter((t) => monthKey(t.date) === month && (filter === "all" || t.categoryId === filter))
       .sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [data.transactions, month, filter]);
+
+  const searchResults = useMemo(() => {
+    if (!isSearching) return [];
+    const q = search.trim().toLowerCase();
+    return data.transactions
+      .filter((t) => {
+        if (filter !== "all" && t.categoryId !== filter) return false;
+        const cat = data.categories.find((c) => c.id === t.categoryId);
+        const haystack = `${t.description || ""} ${cat?.name || ""}`.toLowerCase();
+        return haystack.includes(q);
+      })
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [data.transactions, data.categories, search, filter, isSearching]);
 
   const monthTotals = useMemo(
     () =>
@@ -845,42 +1267,90 @@ function FaturaView({ data, onDelete, onAdd }) {
     [monthTxns]
   );
 
+  const prevMonthExpense = useMemo(() => {
+    const prevKey = shiftMonth(month, -1);
+    return data.transactions
+      .filter((t) => t.type === "expense" && monthKey(t.date) === prevKey)
+      .reduce((s, t) => s + t.amount, 0);
+  }, [data.transactions, month]);
+
+  const expenseChangePct = prevMonthExpense > 0 ? ((monthTotals.expense - prevMonthExpense) / prevMonthExpense) * 100 : null;
+
+  const budgetProgress = useMemo(() => {
+    const budgets = data.budgets || {};
+    return Object.entries(budgets)
+      .filter(([, limit]) => parseFloat(limit) > 0)
+      .map(([categoryId, limit]) => {
+        const cat = data.categories.find((c) => c.id === categoryId);
+        const spent = data.transactions
+          .filter((t) => t.categoryId === categoryId && t.type === "expense" && monthKey(t.date) === month)
+          .reduce((s, t) => s + t.amount, 0);
+        return {
+          categoryId,
+          name: cat?.name || "Categoria",
+          color: cat?.color || "#6E756A",
+          limit: parseFloat(limit),
+          spent,
+          pct: (spent / parseFloat(limit)) * 100,
+        };
+      })
+      .sort((a, b) => b.pct - a.pct);
+  }, [data.budgets, data.categories, data.transactions, month]);
+
   const grouped = useMemo(() => {
     const map = {};
-    monthTxns.forEach((t) => {
+    (isSearching ? searchResults : monthTxns).forEach((t) => {
       if (!map[t.date]) map[t.date] = [];
       map[t.date].push(t);
     });
     return Object.entries(map);
-  }, [monthTxns]);
+  }, [monthTxns, searchResults, isSearching]);
 
   const [y, m] = month.split("-").map(Number);
   const net = monthTotals.income - monthTotals.expense;
   const isCurrent = month === todayISO().slice(0, 7);
+  const [py, pm] = shiftMonth(month, -1).split("-").map(Number);
 
   return (
     <div className="px-5 md:px-8 pt-3 md:pt-8 pb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Fatura</h2>
+        <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Extrato</h2>
         <button onClick={onAdd} className="fin-btn-primary rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
           <Plus size={16} />
         </button>
       </div>
 
+      <div className="relative mb-4">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar lançamento ou categoria…"
+          className="w-full rounded-xl pl-9 pr-8 py-2.5 text-[13px]"
+          style={{ background: "var(--card)", border: "1px solid var(--line)", color: "var(--ink)" }}
+        />
+        {isSearching && (
+          <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 fin-tap44" style={{ color: "var(--muted)" }} aria-label="Limpar busca">
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
       <div className="md:grid md:grid-cols-[300px_1fr] md:gap-8 md:items-start">
         <div className="md:sticky md:top-8">
           {/* Cartão de fatura, com navegação de mês */}
-          <div className="rounded-2xl px-4 py-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+          <div className="rounded-2xl px-4 py-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)", opacity: isSearching ? 0.5 : 1 }}>
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => setMonth((m) => shiftMonth(m, -1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
-                <ChevronLeft size={15} />
+              <button onClick={() => setMonth((m) => shiftMonth(m, -1))} disabled={isSearching} className="w-9 h-9 rounded-full flex items-center justify-center fin-tap44" style={{ background: "var(--paper)" }} aria-label="Mês anterior">
+                <ChevronLeft size={16} />
               </button>
               <div className="text-center">
                 <div className="fin-mono text-[13.5px] font-semibold">{MONTH_NAMES[m - 1]} {y}</div>
                 {isCurrent && <div className="fin-mono text-[9px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>Mês atual</div>}
               </div>
-              <button onClick={() => setMonth((m) => shiftMonth(m, 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--paper)" }}>
-                <ChevronRight size={15} />
+              <button onClick={() => setMonth((m) => shiftMonth(m, 1))} disabled={isSearching} className="w-9 h-9 rounded-full flex items-center justify-center fin-tap44" style={{ background: "var(--paper)" }} aria-label="Próximo mês">
+                <ChevronRight size={16} />
               </button>
             </div>
 
@@ -898,7 +1368,48 @@ function FaturaView({ data, onDelete, onAdd }) {
               <span className="fin-mono text-[11.5px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>Total do mês</span>
               <span className="fin-mono text-[16px] font-semibold" style={{ color: net >= 0 ? "var(--income)" : "var(--expense)" }}>{fmt(net)}</span>
             </div>
+
+            {expenseChangePct !== null && (
+              <div className="flex items-center gap-1.5 mt-2.5 pt-2.5" style={{ borderTop: "1px dashed var(--line)" }}>
+                {expenseChangePct >= 0
+                  ? <ArrowUpRight size={13} color="var(--expense)" />
+                  : <ArrowDownRight size={13} color="var(--income)" />}
+                <span className="text-[11.5px]" style={{ color: "var(--muted)" }}>
+                  <strong style={{ color: expenseChangePct >= 0 ? "var(--expense)" : "var(--income)" }}>
+                    {Math.abs(expenseChangePct).toFixed(0)}%
+                  </strong>{" "}
+                  {expenseChangePct >= 0 ? "a mais" : "a menos"} em despesas que {MONTH_NAMES[pm - 1]} {py}
+                </span>
+              </div>
+            )}
           </div>
+
+          {budgetProgress.length > 0 && (
+            <div className="rounded-2xl px-4 py-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+              <div className="fin-mono text-[10.5px] uppercase tracking-wider mb-2.5" style={{ color: "var(--muted)" }}>Orçamentos do mês</div>
+              {budgetProgress.map((b) => (
+                <div key={b.categoryId} className="mb-2.5 last:mb-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[12px] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: b.color }} />
+                      {b.name}
+                      {b.pct > 100 && <AlertTriangle size={11} color="var(--expense)" aria-label="Orçamento estourado" />}
+                    </span>
+                    <span className="fin-mono text-[11px]" style={{ color: b.pct > 100 ? "var(--expense)" : "var(--muted)" }}>
+                      {fmt(b.spent)} / {fmt(b.limit)}{b.pct > 100 ? " · estourou" : ""}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--paper)" }}>
+                    <div className="h-full rounded-full" style={{ width: Math.min(100, b.pct) + "%", background: b.pct > 100 ? "var(--expense)" : b.color }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button onClick={onOpenBudgets} className="fin-mono text-[11px] flex items-center gap-1.5 mb-4" style={{ color: "var(--navy)" }}>
+            <PiggyBank size={13} /> Definir orçamentos por categoria
+          </button>
 
           <div className="flex gap-1.5 overflow-x-auto pb-1 md:flex-wrap" style={{ scrollbarWidth: "none" }}>
             <FilterChip active={filter === "all"} onClick={() => setFilter("all")} label="Todas" />
@@ -909,8 +1420,13 @@ function FaturaView({ data, onDelete, onAdd }) {
         </div>
 
         <div className="mt-4 md:mt-0">
+          {isSearching && (
+            <div className="fin-mono text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--muted)" }}>
+              {grouped.length === 0 ? "Nenhum resultado" : "Resultados da busca · todos os meses"}
+            </div>
+          )}
           {grouped.length === 0 ? (
-            <EmptyState text="Nenhum lançamento neste mês." />
+            <EmptyState text={isSearching ? "Nenhum lançamento encontrado para essa busca." : "Nenhum lançamento neste mês."} />
           ) : (
             grouped.map(([date, txns]) => (
               <div key={date} className="mb-4">
@@ -918,7 +1434,7 @@ function FaturaView({ data, onDelete, onAdd }) {
                   {fmtDate(date)}
                 </div>
                 {txns.map((t) => (
-                  <TxnRow key={t.id} t={t} data={data} onDelete={onDelete} />
+                  <TxnRow key={t.id} t={t} data={data} onDelete={onDelete} onEdit={onEdit} />
                 ))}
               </div>
             ))
@@ -964,15 +1480,24 @@ function AccountsView({ data, balances, onAdd, onDelete }) {
         {data.accounts.map((a) => {
           const bal = balances[a.id] || 0;
           return (
-            <div key={a.id} className="flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-2.5 md:mb-0" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-              <AccountBadge account={a} size={40} />
+            <div
+              key={a.id}
+              className="relative flex items-center gap-3 rounded-2xl pl-4 pr-4 py-3.5 mb-2.5 md:mb-0 overflow-hidden"
+              style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+            >
+              <div className="absolute left-0 top-0 bottom-0" style={{ width: 4, background: a.color }} />
+              <AccountBadge account={a} size={44} />
               <div className="flex-1 min-w-0">
-                <div className="text-[14px] truncate" style={{ fontWeight: 500 }}>{a.name}</div>
-                <div className="fin-mono text-[10.5px]" style={{ color: "var(--muted)" }}>Saldo inicial: {fmt(a.initialBalance)}</div>
+                <div className="text-[14px] truncate" style={{ fontWeight: 600 }}>{a.name}</div>
+                <div className="fin-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                  {a.avatarInitials ? "Banco / fintech" : "Carteira"} · Saldo inicial {fmt(a.initialBalance)}
+                </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <div className="fin-mono font-semibold text-[14px]" style={{ color: bal >= 0 ? "var(--ink)" : "var(--expense)" }}>{fmt(bal)}</div>
-                <button onClick={() => onDelete(a.id)} className="fin-mono text-[10px] mt-0.5" style={{ color: "var(--muted)" }}>remover</button>
+                <div className="fin-mono font-semibold text-[14.5px]" style={{ color: bal >= 0 ? "var(--ink)" : "var(--expense)" }}>{fmt(bal)}</div>
+                <div className="flex justify-end mt-0.5">
+                  <ConfirmDeleteButton onConfirm={() => onDelete(a.id)} size={12} />
+                </div>
               </div>
             </div>
           );
@@ -1021,7 +1546,7 @@ function GoalCard({ g, onDelete, onAddFunds }) {
           <span className="text-[14px]" style={{ fontWeight: 500 }}>{g.name}</span>
           {done && <Check size={13} color="var(--income)" />}
         </div>
-        <button onClick={() => onDelete(g.id)} style={{ color: "var(--muted)" }}><Trash2 size={13} /></button>
+        <ConfirmDeleteButton onConfirm={() => onDelete(g.id)} />
       </div>
       <div className="h-2 rounded-full mb-2 overflow-hidden" style={{ background: "var(--paper)" }}>
         <div className="h-full rounded-full" style={{ width: pct + "%", background: g.color }} />
@@ -1065,6 +1590,96 @@ function GoalCard({ g, onDelete, onAddFunds }) {
 /* Relatórios                                                              */
 /* ---------------------------------------------------------------------- */
 
+function downloadCSV(data) {
+  const header = ["Data", "Tipo", "Categoria", "Conta", "Descrição", "Valor"];
+  const rows = [...data.transactions]
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((t) => {
+      const cat = data.categories.find((c) => c.id === t.categoryId);
+      const acc = data.accounts.find((a) => a.id === t.accountId);
+      return [
+        t.date,
+        t.type === "income" ? "Receita" : "Despesa",
+        cat?.name || "",
+        acc?.name || "",
+        t.description || "",
+        t.amount.toFixed(2).replace(".", ","),
+      ];
+    });
+  const escape = (v) => {
+    const s = String(v ?? "");
+    return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const csv = [header, ...rows].map((r) => r.map(escape).join(";")).join("\r\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `controle-financeiro-${todayISO()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function PrintStatement({ data }) {
+  const grouped = useMemo(() => {
+    const map = {};
+    [...data.transactions].sort((a, b) => (a.date < b.date ? -1 : 1)).forEach((t) => {
+      const mk = monthKey(t.date);
+      if (!map[mk]) map[mk] = [];
+      map[mk].push(t);
+    });
+    return Object.entries(map).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  }, [data.transactions]);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fin-print-area" style={{ padding: 24, fontFamily: "Arial, sans-serif", color: "#111" }}>
+      <h1 style={{ fontSize: 18, marginBottom: 2 }}>Controle Financeiro — Extrato completo</h1>
+      <p style={{ fontSize: 11, color: "#555", marginBottom: 18 }}>Gerado em {new Date().toLocaleDateString("pt-BR")}</p>
+      {grouped.map(([mk, txns]) => {
+        const [y, m] = mk.split("-").map(Number);
+        return (
+          <div key={mk} style={{ marginBottom: 22, breakInside: "avoid" }}>
+            <h2 style={{ fontSize: 13, marginBottom: 6, borderBottom: "1px solid #ccc", paddingBottom: 4 }}>{MONTH_NAMES[m - 1]} {y}</h2>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "1px solid #999" }}>Data</th>
+                  <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "1px solid #999" }}>Descrição</th>
+                  <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "1px solid #999" }}>Categoria</th>
+                  <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "1px solid #999" }}>Conta</th>
+                  <th style={{ textAlign: "right", padding: "3px 6px", borderBottom: "1px solid #999" }}>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {txns.map((t) => {
+                  const cat = data.categories.find((c) => c.id === t.categoryId);
+                  const acc = data.accounts.find((a) => a.id === t.accountId);
+                  return (
+                    <tr key={t.id}>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee" }}>{fmtDate(t.date)}</td>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee" }}>{t.description || cat?.name || ""}</td>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee" }}>{cat?.name || ""}</td>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee" }}>{acc?.name || ""}</td>
+                      <td style={{ padding: "3px 6px", borderBottom: "1px solid #eee", textAlign: "right", color: t.type === "income" ? "#0a7a4a" : "#a02020" }}>
+                        {t.type === "income" ? "+" : "-"}{fmt(t.amount)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+    </div>,
+    document.body
+  );
+}
+
 function ReportsView({ data, totals }) {
   const now = new Date();
   const curMonth = now.toISOString().slice(0, 7);
@@ -1099,7 +1714,22 @@ function ReportsView({ data, totals }) {
 
   return (
     <div className="px-5 md:px-8 pt-3 md:pt-8 pb-6">
-      <h2 className="fin-mono text-[13px] uppercase tracking-widest mb-3" style={{ color: "var(--muted)" }}>Relatórios</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="fin-mono text-[13px] uppercase tracking-widest" style={{ color: "var(--muted)" }}>Relatórios</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV(data)}
+            className="fin-mono text-[11px] flex items-center gap-1.5 rounded-full px-3 py-1.5"
+            style={{ border: "1px solid var(--line)", color: "var(--ink)" }}
+          ><Download size={12} /> CSV</button>
+          <button
+            onClick={() => window.print()}
+            className="fin-mono text-[11px] flex items-center gap-1.5 rounded-full px-3 py-1.5"
+            style={{ border: "1px solid var(--line)", color: "var(--ink)" }}
+          ><Printer size={12} /> PDF</button>
+        </div>
+      </div>
+      <PrintStatement data={data} />
 
       <div className="flex gap-3 mb-5 md:max-w-[500px]">
         <div className="flex-1 rounded-2xl px-3.5 py-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
@@ -1260,6 +1890,357 @@ function SalaryView({ data, onUpdateSettings }) {
 /* Novidades (changelog)                                                  */
 /* ---------------------------------------------------------------------- */
 
+/* ---------------------------------------------------------------------- */
+/* Orçamentos por categoria                                                */
+/* ---------------------------------------------------------------------- */
+
+function BudgetSheet({ data, onClose, onUpdateBudget }) {
+  const expenseCats = data.categories.filter((c) => c.type === "expense");
+  const [values, setValues] = useState(() => {
+    const initial = {};
+    expenseCats.forEach((c) => { initial[c.id] = data.budgets?.[c.id] ? String(data.budgets[c.id]) : ""; });
+    return initial;
+  });
+
+  const handleBlur = (categoryId) => {
+    const n = parseFloat(values[categoryId]);
+    onUpdateBudget(categoryId, isNaN(n) || n <= 0 ? 0 : n);
+  };
+
+  return (
+    <Sheet title="Orçamentos por categoria" onClose={onClose}>
+      <p className="text-[12px] mb-4" style={{ color: "var(--muted)" }}>
+        Defina um limite mensal para as categorias que quiser acompanhar. Deixe em branco para não definir limite.
+      </p>
+      {expenseCats.map((c) => (
+        <div key={c.id} className="flex items-center gap-3 mb-3">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: c.color + "20" }}>
+            <CategoryIcon cat={c} size={15} />
+          </div>
+          <span className="text-[13px] flex-1">{c.name}</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Sem limite"
+            value={values[c.id]}
+            onChange={(e) => setValues((v) => ({ ...v, [c.id]: e.target.value }))}
+            onBlur={() => handleBlur(c.id)}
+            className="w-28 rounded-xl px-3 py-2 text-[13px] text-right"
+            style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+          />
+        </div>
+      ))}
+      <button
+        onClick={() => { expenseCats.forEach((c) => handleBlur(c.id)); onClose(); }}
+        className="fin-btn-primary w-full rounded-2xl py-3 text-[13px] mt-3"
+      >Salvar orçamentos</button>
+    </Sheet>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------- */
+/* Trava por PIN                                                          */
+/* ---------------------------------------------------------------------- */
+
+function PinPad({ onComplete, error, resetKey }) {
+  const [entered, setEntered] = useState("");
+
+  useEffect(() => { setEntered(""); }, [resetKey]);
+
+  const press = (d) => {
+    if (entered.length >= 4) return;
+    const next = entered + d;
+    setEntered(next);
+    if (next.length === 4) {
+      onComplete(next);
+      setTimeout(() => setEntered(""), 350);
+    }
+  };
+
+  const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  return (
+    <div>
+      <div className="flex justify-center gap-3 mb-7">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="w-3.5 h-3.5 rounded-full"
+            style={{
+              background: i < entered.length ? (error ? "var(--expense)" : "var(--ink)") : "transparent",
+              border: `2px solid ${error ? "var(--expense)" : "var(--line)"}`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-4 max-w-[290px] mx-auto">
+        {numbers.map((n) => (
+          <button
+            key={n}
+            onClick={() => press(String(n))}
+            className="fin-mono text-[26px] rounded-full aspect-square flex items-center justify-center"
+            style={{ background: "var(--card)", border: "1px solid var(--line)", fontWeight: 500 }}
+          >{n}</button>
+        ))}
+        <div />
+        <button
+          onClick={() => press("0")}
+          className="fin-mono text-[26px] rounded-full aspect-square flex items-center justify-center"
+          style={{ background: "var(--card)", border: "1px solid var(--line)", fontWeight: 500 }}
+        >0</button>
+        <button
+          onClick={() => setEntered((e) => e.slice(0, -1))}
+          className="rounded-full aspect-square flex items-center justify-center"
+          style={{ color: "var(--muted)" }}
+        ><Delete size={18} /></button>
+      </div>
+    </div>
+  );
+}
+
+function PinLockOverlay({ verifyPin, onUnlock }) {
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  const handleComplete = async (pin) => {
+    const ok = await verifyPin(pin);
+    if (ok) {
+      onUnlock();
+    } else {
+      setError(true);
+      setAttempt((a) => a + 1);
+      setTimeout(() => setError(false), 500);
+    }
+  };
+
+  return (
+    <div
+      className="w-full max-w-[340px] mx-4 flex flex-col items-center px-6 py-10 text-center rounded-[28px]"
+      style={{ background: "var(--card)", border: "1px solid var(--line)", boxShadow: "0 20px 50px rgba(0,0,0,0.12)" }}
+    >
+      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5" style={{ background: "var(--ink)" }}>
+        <Lock size={22} color="var(--card)" />
+      </div>
+      <div className="fin-mono text-[11.5px] uppercase tracking-[0.2em] mb-1.5" style={{ color: "var(--muted)" }}>Financeiro</div>
+      <div className="text-[15px] mb-7" style={{ fontWeight: 500 }}>Digite seu PIN para continuar</div>
+      <PinPad onComplete={handleComplete} error={error} resetKey={attempt} />
+      <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)", visibility: error ? "visible" : "hidden" }}>PIN incorreto, tente de novo.</p>
+    </div>
+  );
+}
+
+function AccessibilitySheet({ onClose, fontScale, setFontScale, highContrast, setHighContrast }) {
+  const scales = [
+    { id: "small", label: "A", size: 13 },
+    { id: "medium", label: "A", size: 16 },
+    { id: "large", label: "A", size: 19 },
+  ];
+  return (
+    <Sheet title="Acessibilidade" onClose={onClose}>
+      <FieldLabel>Tamanho do texto</FieldLabel>
+      <div className="flex rounded-xl overflow-hidden mb-1" style={{ border: "1px solid var(--line)" }}>
+        {scales.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setFontScale(s.id)}
+            className="fin-mono flex-1 py-3 flex items-center justify-center fin-tap44"
+            style={{
+              background: fontScale === s.id ? "var(--ink)" : "var(--paper)",
+              color: fontScale === s.id ? "var(--card)" : "var(--ink)",
+              fontSize: s.size,
+            }}
+          >{s.label}</button>
+        ))}
+      </div>
+      <p className="text-[11px] mb-5" style={{ color: "var(--muted)" }}>
+        Deixa o texto e os elementos do app maiores ou menores, em toda a tela.
+      </p>
+
+      <button
+        onClick={() => setHighContrast((v) => !v)}
+        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5"
+        style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+      >
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--paper)" }}>
+          <Accessibility size={16} />
+        </div>
+        <div className="text-left flex-1">
+          <div className="text-[13.5px]" style={{ fontWeight: 600 }}>Alto contraste</div>
+          <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>Preto e branco puros, texto mais nítido</div>
+        </div>
+        <div
+          className="w-11 h-6 rounded-full flex-shrink-0 relative"
+          style={{ background: highContrast ? "var(--income)" : "var(--line)" }}
+        >
+          <div
+            className="w-5 h-5 rounded-full absolute top-0.5 transition-all"
+            style={{ background: "#fff", left: highContrast ? 22 : 2 }}
+          />
+        </div>
+      </button>
+    </Sheet>
+  );
+}
+
+function MoreMenuSheet({ onClose, theme, onToggleTheme, onOpenSecurity, pinEnabled, onOpenAccessibility }) {
+  return (
+    <Sheet title="Mais opções" onClose={onClose}>
+      <button
+        onClick={onToggleTheme}
+        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-2.5"
+        style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+      >
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--paper)" }}>
+          {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+        </div>
+        <div className="text-left flex-1">
+          <div className="text-[13.5px]" style={{ fontWeight: 600 }}>Aparência</div>
+          <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>Tema {theme === "light" ? "claro" : "escuro"} — toque para trocar</div>
+        </div>
+      </button>
+
+      <button
+        onClick={() => { onClose(); onOpenSecurity(); }}
+        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-2.5"
+        style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+      >
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--paper)" }}>
+          <Lock size={16} color={pinEnabled ? "var(--income)" : "currentColor"} />
+        </div>
+        <div className="text-left flex-1">
+          <div className="text-[13.5px]" style={{ fontWeight: 600 }}>Segurança</div>
+          <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>{pinEnabled ? "Trava por PIN ativada" : "Ativar trava por PIN"}</div>
+        </div>
+      </button>
+
+      <button
+        onClick={() => { onClose(); onOpenAccessibility(); }}
+        className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5"
+        style={{ background: "var(--card)", border: "1px solid var(--line)" }}
+      >
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--paper)" }}>
+          <Accessibility size={16} />
+        </div>
+        <div className="text-left flex-1">
+          <div className="text-[13.5px]" style={{ fontWeight: 600 }}>Acessibilidade</div>
+          <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>Tamanho do texto e alto contraste</div>
+        </div>
+      </button>
+    </Sheet>
+  );
+}
+
+function SecuritySheet({ onClose, pinEnabled, verifyPin, setupPin, disablePin }) {
+  const [step, setStep] = useState("status"); // status | enter-current | enter-new | confirm-new
+  const [firstPin, setFirstPin] = useState("");
+  const [error, setError] = useState("");
+  const [resetKey, setResetKey] = useState(0);
+  // Ação pendente após confirmar o PIN atual: 'disable' ou 'change'
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const bump = () => setResetKey((k) => k + 1);
+
+  const onCurrentPinComplete = async (pin) => {
+    const ok = await verifyPin(pin);
+    if (!ok) {
+      setError("PIN incorreto.");
+      bump();
+      return;
+    }
+    setError("");
+    if (pendingAction === "disable") {
+      disablePin();
+      setStep("status");
+    } else {
+      setStep("enter-new");
+    }
+  };
+
+  const onNewPinComplete = (pin) => {
+    setFirstPin(pin);
+    setError("");
+    setStep("confirm-new");
+  };
+
+  const onConfirmPinComplete = async (pin) => {
+    if (pin !== firstPin) {
+      setError("Os PINs não coincidem. Tente de novo.");
+      setStep("enter-new");
+      bump();
+      return;
+    }
+    await setupPin(pin);
+    setError("");
+    setStep("status");
+  };
+
+  return (
+    <Sheet title="Segurança" onClose={onClose}>
+      {step === "status" && (
+        <>
+          <div className="flex items-center gap-3 mb-5 rounded-2xl px-4 py-3.5" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: pinEnabled ? "var(--income)" + "20" : "var(--paper)" }}>
+              {pinEnabled ? <ShieldCheck size={17} color="var(--income)" /> : <Lock size={17} color="var(--muted)" />}
+            </div>
+            <div>
+              <div className="text-[13.5px]" style={{ fontWeight: 600 }}>{pinEnabled ? "Trava por PIN ativada" : "Trava por PIN desativada"}</div>
+              <div className="text-[11.5px]" style={{ color: "var(--muted)" }}>
+                {pinEnabled ? "O app pede o PIN ao abrir e após 1 minuto em segundo plano." : "Qualquer pessoa com acesso ao aparelho pode abrir o app."}
+              </div>
+            </div>
+          </div>
+
+          {!pinEnabled ? (
+            <button onClick={() => { setPendingAction(null); setStep("enter-new"); }} className="fin-btn-primary w-full rounded-2xl py-3 text-[13px]">
+              Ativar trava por PIN
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setPendingAction("change"); setError(""); setStep("enter-current"); }}
+                className="rounded-2xl py-3 text-[13px] fin-mono"
+                style={{ border: "1px solid var(--line)" }}
+              >Alterar PIN</button>
+              <button
+                onClick={() => { setPendingAction("disable"); setError(""); setStep("enter-current"); }}
+                className="rounded-2xl py-3 text-[13px] fin-mono"
+                style={{ border: "1px solid var(--line)", color: "var(--expense)" }}
+              >Desativar trava</button>
+            </div>
+          )}
+        </>
+      )}
+
+      {step === "enter-current" && (
+        <div className="text-center">
+          <p className="text-[13px] mb-5" style={{ color: "var(--muted)" }}>Digite seu PIN atual para continuar</p>
+          <PinPad onComplete={onCurrentPinComplete} error={Boolean(error)} resetKey={resetKey} />
+          {error && <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)" }}>{error}</p>}
+        </div>
+      )}
+
+      {step === "enter-new" && (
+        <div className="text-center">
+          <p className="text-[13px] mb-5" style={{ color: "var(--muted)" }}>Crie um PIN de 4 dígitos</p>
+          <PinPad onComplete={onNewPinComplete} error={Boolean(error)} resetKey={resetKey} />
+          {error && <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)" }}>{error}</p>}
+        </div>
+      )}
+
+      {step === "confirm-new" && (
+        <div className="text-center">
+          <p className="text-[13px] mb-5" style={{ color: "var(--muted)" }}>Digite o mesmo PIN de novo para confirmar</p>
+          <PinPad onComplete={onConfirmPinComplete} error={Boolean(error)} resetKey={resetKey} />
+          {error && <p className="text-[11.5px] mt-4" style={{ color: "var(--expense)" }}>{error}</p>}
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
 function ChangelogSheet({ onClose }) {
   return (
     <Sheet title="Novidades" onClose={onClose}>
@@ -1272,7 +2253,7 @@ function ChangelogSheet({ onClose }) {
             <div>
               <div className="text-[13.5px]" style={{ fontWeight: 600 }}>{entry.title}</div>
               <div className="fin-mono text-[10px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-                {i === 0 ? "Mais recente" : `Atualização ${entry.version}`}
+                {i === 0 ? "Mais recente" : `Atualização ${entry.version}`}{entry.date ? ` · ${entry.date}` : ""}
               </div>
             </div>
           </div>
@@ -1295,21 +2276,55 @@ function ChangelogSheet({ onClose }) {
 /* Formulários (sheets)                                                    */
 /* ---------------------------------------------------------------------- */
 
-function AddTxnSheet({ data, onClose, onSave }) {
-  const [type, setType] = useState("expense");
-  const [amount, setAmount] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [accountId, setAccountId] = useState(data.accounts[0]?.id || "");
-  const [date, setDate] = useState(todayISO());
-  const [description, setDescription] = useState("");
+function AddTxnSheet({ data, onClose, onSave, onUpdate, editingTxn }) {
+  const isEditing = Boolean(editingTxn);
+  const [type, setType] = useState(editingTxn?.type || "expense");
+  const [amount, setAmount] = useState(editingTxn ? String(editingTxn.amount) : "");
+  const [categoryId, setCategoryId] = useState(editingTxn?.categoryId || "");
+  const [accountId, setAccountId] = useState(editingTxn?.accountId || data.accounts[0]?.id || "");
+  const [date, setDate] = useState(editingTxn?.date || todayISO());
+  const [description, setDescription] = useState(editingTxn?.description || "");
+  const [repeatMode, setRepeatMode] = useState("none"); // 'none' | 'installment' | 'fixed'
+  const [repeatCount, setRepeatCount] = useState("2");
 
   const cats = data.categories.filter((c) => c.type === type);
   useEffect(() => { if (cats.length && !cats.find(c => c.id === categoryId)) setCategoryId(cats[0].id); }, [type]);
 
-  const canSave = amount && parseFloat(amount) > 0 && categoryId && accountId && date;
+  const canSave = amount && parseFloat(amount) > 0 && categoryId && accountId && date &&
+    (isEditing || repeatMode === "none" || (parseInt(repeatCount, 10) >= 2 && parseInt(repeatCount, 10) <= 60));
+
+  const handleSave = () => {
+    const baseAmount = parseFloat(amount);
+
+    if (isEditing) {
+      onUpdate(editingTxn.id, { type, amount: baseAmount, categoryId, accountId, date, description });
+      return;
+    }
+
+    const n = repeatMode === "none" ? 1 : Math.max(2, Math.min(60, parseInt(repeatCount, 10) || 2));
+    const txns = [];
+
+    if (n === 1) {
+      txns.push({ type, amount: baseAmount, categoryId, accountId, date, description });
+    } else {
+      const perInstallment = repeatMode === "installment" ? Math.round((baseAmount / n) * 100) / 100 : baseAmount;
+      for (let i = 0; i < n; i++) {
+        let amt = perInstallment;
+        if (repeatMode === "installment" && i === n - 1) {
+          // ajusta a última parcela para compensar arredondamento
+          amt = Math.round((baseAmount - perInstallment * (n - 1)) * 100) / 100;
+        }
+        const desc = repeatMode === "installment"
+          ? `${description ? description + " " : ""}(${i + 1}/${n})`
+          : description;
+        txns.push({ type, amount: amt, categoryId, accountId, date: addMonthsClamped(date, i), description: desc });
+      }
+    }
+    onSave(txns);
+  };
 
   return (
-    <Sheet title="Novo lançamento" onClose={onClose}>
+    <Sheet title={isEditing ? "Editar lançamento" : "Novo lançamento"} onClose={onClose}>
       <div className="flex rounded-xl overflow-hidden mb-1" style={{ border: "1px solid var(--line)" }}>
         <button
           onClick={() => setType("expense")}
@@ -1323,7 +2338,7 @@ function AddTxnSheet({ data, onClose, onSave }) {
         >Receita</button>
       </div>
 
-      <FieldLabel>Valor (R$)</FieldLabel>
+      <FieldLabel>{!isEditing && repeatMode === "installment" ? "Valor total da compra (R$)" : "Valor (R$)"}</FieldLabel>
       <TextInput type="number" step="0.01" min="0" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value)} />
 
       <FieldLabel>Categoria</FieldLabel>
@@ -1336,18 +2351,66 @@ function AddTxnSheet({ data, onClose, onSave }) {
         {data.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
       </SelectInput>
 
-      <FieldLabel>Data</FieldLabel>
+      <FieldLabel>Data {!isEditing && repeatMode !== "none" ? "(1º lançamento)" : ""}</FieldLabel>
       <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
 
       <FieldLabel>Descrição (opcional)</FieldLabel>
       <TextInput type="text" placeholder="Ex: Almoço, Uber…" value={description} onChange={(e) => setDescription(e.target.value)} />
 
+      {!isEditing && (
+        <>
+          <FieldLabel>Repetição</FieldLabel>
+          <div className="flex rounded-xl overflow-hidden mb-2" style={{ border: "1px solid var(--line)" }}>
+            {[
+              { id: "none", label: "Única" },
+              { id: "installment", label: "Parcelado" },
+              { id: "fixed", label: "Fixo mensal" },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => setRepeatMode(opt.id)}
+                className="fin-mono flex-1 py-2 text-[11.5px]"
+                style={{
+                  background: repeatMode === opt.id ? "var(--ink)" : "var(--paper)",
+                  color: repeatMode === opt.id ? "var(--card)" : "var(--ink)",
+                }}
+              >{opt.label}</button>
+            ))}
+          </div>
+
+          {repeatMode !== "none" && (
+            <>
+              <TextInput
+                type="number"
+                min="2"
+                max="60"
+                step="1"
+                placeholder="Quantidade de meses"
+                value={repeatCount}
+                onChange={(e) => setRepeatCount(e.target.value)}
+              />
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--muted)" }}>
+                {repeatMode === "installment"
+                  ? `O valor total será dividido em ${repeatCount || "N"} parcelas, uma por mês.`
+                  : `O mesmo valor será lançado todo mês, por ${repeatCount || "N"} meses.`}
+              </p>
+            </>
+          )}
+        </>
+      )}
+
+      {isEditing && (
+        <p className="text-[11px] mt-2" style={{ color: "var(--muted)" }}>
+          Isso edita só este lançamento — parcelas ou meses já criados anteriormente não são alterados.
+        </p>
+      )}
+
       <button
         disabled={!canSave}
-        onClick={() => onSave({ type, amount: parseFloat(amount), categoryId, accountId, date, description })}
+        onClick={handleSave}
         className="fin-btn-primary w-full rounded-2xl py-3 text-[13px] mt-5"
         style={{ opacity: canSave ? 1 : 0.4 }}
-      >Salvar lançamento</button>
+      >{isEditing ? "Salvar alterações" : "Salvar lançamento"}</button>
     </Sheet>
   );
 }
@@ -1358,6 +2421,7 @@ function AddAccountSheet({ onClose, onSave }) {
   const [color, setColor] = useState(PALETTE[0]);
   const [avatarInitials, setAvatarInitials] = useState(null);
   const [initialBalance, setInitialBalance] = useState("");
+  const [bankSearch, setBankSearch] = useState("");
 
   const canSave = name.trim().length > 0;
 
@@ -1367,23 +2431,44 @@ function AddAccountSheet({ onClose, onSave }) {
     setAvatarInitials(bank.initials);
   };
 
+  const filteredBanks = BANKS.filter((b) => b.name.toLowerCase().includes(bankSearch.trim().toLowerCase()));
+
   return (
     <Sheet title="Nova conta ou cartão" onClose={onClose}>
-      <FieldLabel>Bancos e carteiras (atalho)</FieldLabel>
-      <div className="flex gap-2 flex-wrap mb-1">
-        {BANKS.map((b) => (
-          <button
-            key={b.name}
-            onClick={() => pickBank(b)}
-            className="fin-chip flex flex-col items-center gap-1"
-            style={{ width: 52 }}
-          >
-            <div className="rounded-xl flex items-center justify-center" style={{ width: 40, height: 40, background: b.color, border: avatarInitials === b.initials && name === b.name ? "2px solid var(--ink)" : "2px solid transparent" }}>
-              <span className="fin-mono font-semibold" style={{ color: "#fff", fontSize: 13 }}>{b.initials}</span>
-            </div>
-            <span className="text-[9px] text-center leading-tight" style={{ color: "var(--muted)" }}>{b.name}</span>
-          </button>
-        ))}
+      <FieldLabel>Bancos e fintechs (atalho)</FieldLabel>
+      <div className="relative mb-2">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+        <input
+          type="text"
+          value={bankSearch}
+          onChange={(e) => setBankSearch(e.target.value)}
+          placeholder="Buscar banco…"
+          className="w-full rounded-xl pl-8 pr-3 py-2 text-[12.5px]"
+          style={{ background: "var(--paper)", border: "1px solid var(--line)", color: "var(--ink)" }}
+        />
+      </div>
+      <div className="grid grid-cols-4 gap-2 mb-1 max-h-56 overflow-y-auto fin-scroll pr-0.5">
+        {filteredBanks.map((b) => {
+          const active = avatarInitials === b.initials && name === b.name;
+          return (
+            <button
+              key={b.name}
+              onClick={() => pickBank(b)}
+              className="fin-chip flex flex-col items-center gap-1 py-1"
+            >
+              <div
+                className="rounded-xl flex items-center justify-center"
+                style={{ width: 40, height: 40, background: b.color, border: active ? "2px solid var(--ink)" : "2px solid transparent", boxShadow: active ? "0 0 0 2px var(--paper)" : "none" }}
+              >
+                <span className="fin-mono font-semibold" style={{ color: "#fff", fontSize: 12 }}>{b.initials}</span>
+              </div>
+              <span className="text-[9px] text-center leading-tight" style={{ color: "var(--muted)" }}>{b.name}</span>
+            </button>
+          );
+        })}
+        {filteredBanks.length === 0 && (
+          <div className="col-span-4 text-center text-[11.5px] py-3" style={{ color: "var(--muted)" }}>Nenhum banco encontrado.</div>
+        )}
       </div>
       <p className="text-[10.5px] mb-2" style={{ color: "var(--muted)" }}>
         Selo com cor e iniciais do banco — não é o logotipo oficial.
